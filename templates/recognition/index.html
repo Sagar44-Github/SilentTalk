@@ -1,0 +1,217 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Silent Talk — Letter Recognition</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Real-time Indian Sign Language letter recognition using AI">
+    <link rel="stylesheet" href="{% static 'recognition/css/silenttalk.css' %}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="st-navbar">
+        <a href="/" class="st-logo">
+            <span class="st-logo-icon">🤟</span>
+            <span class="st-logo-text">SILENT TALK</span>
+        </a>
+        <div class="st-nav-links">
+            <a href="/" class="st-nav-link active">
+                <span class="nav-emoji">✋</span> Letters
+            </a>
+            <a href="/gesture/" class="st-nav-link">
+                <span class="nav-emoji">🤟</span> Gestures
+            </a>
+            <a href="/speech-to-isl/" class="st-nav-link">
+                <span class="nav-emoji">🗣️</span> Speech→ISL
+            </a>
+        </div>
+    </nav>
+
+    <div class="st-container">
+        <!-- Header -->
+        <div class="st-page-header">
+            <span class="st-mode-badge mode-1">MODE 1</span>
+            <h1 class="st-page-title">Letter Recognition</h1>
+            <p class="st-page-subtitle">Show sign language letters to the camera — AI detects them in real time</p>
+        </div>
+
+        <!-- Main grid -->
+        <div class="st-grid-sidebar">
+            <!-- Left: Video + detected text -->
+            <div class="st-flex-col" style="align-items:center;">
+                <div class="st-video-wrapper">
+                    <video id="video" width="640" height="480" autoplay playsinline></video>
+                    <canvas id="canvas" width="640" height="480"></canvas>
+                    <div class="st-video-overlay">
+                        <span id="overlayStatus" style="font-size:12px; color:var(--text-muted);">Initializing camera...</span>
+                    </div>
+                </div>
+
+                <div class="st-detected-text" id="detected-text">—</div>
+
+                <div class="st-sentence" id="sentence"></div>
+
+                <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+                    <button class="st-btn st-btn-cyan" id="spaceBtn">
+                        <span>⎵</span> Space
+                    </button>
+                    <button class="st-btn st-btn-danger" id="clearBtn">
+                        <span>✕</span> Clear
+                    </button>
+                    <button class="st-btn st-btn-success" id="speakBtn">
+                        <span>🔊</span> Speak
+                    </button>
+                </div>
+
+                <div class="st-status" id="status">Waiting for camera...</div>
+            </div>
+
+            <!-- Right: Info panel -->
+            <div class="st-flex-col">
+                <div class="st-card">
+                    <div class="st-card-title">
+                        <span class="card-icon">📊</span> Detection Stats
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:14px; color:var(--text-muted); margin-bottom:6px;">Buffer</div>
+                        <div style="font-size:36px; font-weight:800; color:var(--cyan);" id="bufferCount">0 / 12</div>
+                    </div>
+                    <div class="st-confidence-bar" style="margin-top:12px;">
+                        <div class="st-confidence-fill" id="bufferBar"></div>
+                    </div>
+                    <div class="st-confidence-text" id="bufferText">Waiting for gesture...</div>
+                </div>
+
+                <div class="st-card">
+                    <div class="st-card-title">
+                        <span class="card-icon">💡</span> How It Works
+                    </div>
+                    <div style="font-size:13px; color:var(--text-muted); line-height:1.8;">
+                        <p>Show ISL hand signs to the camera. The AI detects what letter you're signing.</p>
+                        <p style="margin-top:8px;">Hold a sign steady for ~2 seconds and it gets added to the sentence. Press <strong style="color:var(--cyan);">Space</strong> between words, <strong style="color:var(--red);">Clear</strong> to reset.</p>
+                        <p style="margin-top:8px;">Press <strong style="color:var(--green);">Speak</strong> to hear the sentence read aloud.</p>
+                    </div>
+                </div>
+
+                <div class="st-card">
+                    <div class="st-card-title">
+                        <span class="card-icon">🔗</span> Other Modes
+                    </div>
+                    <a href="/gesture/" class="st-btn st-btn-primary st-btn-block" style="text-decoration:none;">
+                        🤟 Word Gesture Mode
+                    </a>
+                    <a href="/speech-to-isl/" class="st-btn st-btn-ghost st-btn-block" style="text-decoration:none;">
+                        🗣️ Speech → ISL Avatar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sentence = "";
+        let stabilizationBuffer = [];
+        let lastRegisteredLetter = "";
+        let lastRegisteredTime = 0;
+        const BUFFER_SIZE = 15;
+        const STABILITY_THRESHOLD = 12;
+        const COOLDOWN_MS = 1500;
+        let requestInFlight = false;
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                document.getElementById("video").srcObject = stream;
+                document.getElementById("status").textContent = "Camera active — start signing!";
+                document.getElementById("overlayStatus").textContent = "Camera active";
+            })
+            .catch(err => {
+                document.getElementById("status").textContent = "Camera error: " + err;
+            });
+
+        setInterval(function () {
+            if (requestInFlight) return;
+
+            const video = document.getElementById("video");
+            const canvas = document.getElementById("canvas");
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, 640, 480);
+            const frameData = canvas.toDataURL("image/jpeg", 0.6);
+
+            requestInFlight = true;
+            $.ajax({
+                url: "/predict/",
+                type: "POST",
+                data: { frame: frameData },
+                success: function (data) {
+                    requestInFlight = false;
+                    if (data.letter) {
+                        $("#detected-text").text(data.letter);
+
+                        stabilizationBuffer.push(data.letter);
+                        if (stabilizationBuffer.length > BUFFER_SIZE) {
+                            stabilizationBuffer.shift();
+                        }
+
+                        let count = stabilizationBuffer.filter(l => l === data.letter).length;
+                        let pct = Math.round((count / STABILITY_THRESHOLD) * 100);
+                        if (pct > 100) pct = 100;
+                        document.getElementById("bufferCount").textContent = count + " / " + STABILITY_THRESHOLD;
+                        document.getElementById("bufferBar").style.width = pct + "%";
+                        document.getElementById("bufferText").textContent = "Detecting: " + data.letter;
+
+                        if (count >= STABILITY_THRESHOLD) {
+                            let now = Date.now();
+                            if (data.letter !== lastRegisteredLetter || (now - lastRegisteredTime) > COOLDOWN_MS) {
+                                sentence += (data.letter === " " ? " " : data.letter === "." ? "." : data.letter);
+                                $("#sentence").text(sentence);
+                                lastRegisteredLetter = data.letter;
+                                lastRegisteredTime = now;
+                                stabilizationBuffer = [];
+                            }
+                        }
+
+                        document.getElementById("status").textContent = "Detecting: " + data.letter + " | Buffer: " + count + "/" + STABILITY_THRESHOLD;
+                        document.getElementById("overlayStatus").textContent = "Detected: " + data.letter;
+                    } else {
+                        $("#detected-text").text("—");
+                        stabilizationBuffer = [];
+                        lastRegisteredLetter = "";
+                        document.getElementById("bufferCount").textContent = "0 / " + STABILITY_THRESHOLD;
+                        document.getElementById("bufferBar").style.width = "0%";
+                        document.getElementById("bufferText").textContent = "No hand detected";
+                        document.getElementById("status").textContent = "No hand detected — show a sign!";
+                        document.getElementById("overlayStatus").textContent = "No hand detected";
+                    }
+                },
+                error: function (xhr, status, error) {
+                    requestInFlight = false;
+                    $("#status").text("Error: " + error);
+                }
+            });
+        }, 200);
+
+        $("#spaceBtn").click(function () {
+            sentence += " ";
+            $("#sentence").text(sentence);
+        });
+
+        $("#clearBtn").click(function () {
+            sentence = "";
+            lastRegisteredLetter = "";
+            stabilizationBuffer = [];
+            $("#sentence").text("");
+            $("#detected-text").text("—");
+            $("#status").text("Cleared — start signing!");
+        });
+
+        $("#speakBtn").click(function () {
+            if (sentence.trim()) {
+                const utterance = new SpeechSynthesisUtterance(sentence);
+                window.speechSynthesis.speak(utterance);
+            }
+        });
+    </script>
+</body>
+</html>
