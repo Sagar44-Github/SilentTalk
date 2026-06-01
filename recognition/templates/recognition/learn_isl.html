@@ -1,0 +1,600 @@
+{% load static %}
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Learn ISL | Silent Talk</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = { darkMode:"class", theme:{ extend:{ colors:{ "primary-fixed":"#e0e7ff","on-surface-variant":"#64748b","on-surface":"#0f172a","surface-variant":"#f1f5f9","outline-variant":"#e2e8f0","outline":"#94a3b8","primary":"#1e40af","background":"#f8fafc","on-primary":"#ffffff","surface":"#f8fafc","surface-container-high":"#f1f5f9","error-container":"#fee2e2","on-error-container":"#991b1b" }, fontFamily:{"headline":["Manrope"],"body":["Inter"]}, borderRadius:{"DEFAULT":"0.5rem","lg":"0.5rem","xl":"0.75rem","2xl":"1.5rem","3xl":"2.5rem","full":"9999px"} } } }
+</script>
+<style>
+  body{font-family:'Inter',sans-serif;}h1,h2,h3{font-family:'Manrope',sans-serif;}
+  .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;}
+  .glass{background:rgba(255,255,255,0.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);}
+  .dark .glass{background:rgba(15,23,42,0.7);border:1px solid rgba(255,255,255,0.05);}
+  .letter-card{transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);}
+  .letter-card:hover{transform:translateY(-4px) scale(1.04);}
+  video#practiceVideo{border-radius:1.5rem;object-fit:cover;width:100%;height:100%;}
+
+  /* Progress ring */
+  .progress-ring{transform:rotate(-90deg);}
+  .progress-ring__circle{transition:stroke-dashoffset 0.5s cubic-bezier(0.34,1.56,0.64,1);transform-origin:50% 50%;}
+
+  /* Celebration */
+  @keyframes celebrate{0%{transform:scale(1);}50%{transform:scale(1.15);}100%{transform:scale(1);}}
+  .celebrate{animation:celebrate 0.6s ease-in-out;}
+
+  /* Green pulse on correct */
+  @keyframes correctPulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,0.5);}100%{box-shadow:0 0 0 20px rgba(34,197,94,0);}}
+  .correct-pulse{animation:correctPulse 0.8s ease-out;}
+
+  /* Shake on wrong */
+  @keyframes wrongShake{0%,100%{transform:translateX(0);}25%{transform:translateX(-8px);}75%{transform:translateX(8px);}50%{transform:translateX(-4px);}}
+  .wrong-shake{animation:wrongShake 0.4s ease-in-out;}
+
+  /* Reference slide out */
+  @keyframes slideOut{0%{opacity:1;transform:translateX(0);}100%{opacity:0;transform:translateX(40px);}}
+  .slide-out{animation:slideOut 0.8s ease-in-out forwards;}
+
+  /* Confetti burst */
+  @keyframes confetti-fall{0%{transform:translateY(0) rotate(0deg);opacity:1;}100%{transform:translateY(300px) rotate(720deg);opacity:0;}}
+  .confetti-piece{position:absolute;width:8px;height:8px;border-radius:2px;animation:confetti-fall 2s ease-out forwards;pointer-events:none;}
+</style>
+</head>
+<body class="bg-background text-on-surface dark:bg-slate-950 dark:text-slate-200 transition-colors duration-300">
+
+<!-- Navbar -->
+<nav class="fixed top-0 w-full z-[100] glass border-b border-outline-variant/10 dark:border-slate-800/50">
+  <div class="flex justify-between items-center max-w-7xl mx-auto px-6 md:px-12 h-20">
+    <a href="{% url 'landing' %}" class="text-2xl font-extrabold tracking-tighter text-primary dark:text-blue-400 flex items-center gap-2">
+      <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white shadow-sm rotate-12"><span class="material-symbols-outlined text-sm">waving_hand</span></div>Silent Talk
+    </a>
+    <div class="hidden md:flex items-center gap-10 font-semibold text-sm tracking-tight">
+      <a class="text-on-surface-variant hover:text-primary dark:hover:text-blue-400 transition-colors" href="{% url 'landing' %}">Home</a>
+      <a class="text-on-surface-variant hover:text-primary dark:hover:text-blue-400 transition-colors" href="{% url 'recognize' %}">Sign→Text</a>
+      <a class="text-on-surface-variant hover:text-primary dark:hover:text-blue-400 transition-colors" href="{% url 'text_to_isl' %}">Text→ISL</a>
+      <a class="text-primary dark:text-blue-400 relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-primary" href="{% url 'learn_isl' %}">Learn ISL</a>
+    </div>
+    <div class="flex items-center gap-4">
+      <button class="p-2 rounded-full hover:bg-surface-variant dark:hover:bg-slate-700 transition-colors" id="theme-toggle">
+        <span class="material-symbols-outlined text-2xl hidden" id="theme-toggle-dark-icon">dark_mode</span>
+        <span class="material-symbols-outlined text-2xl" id="theme-toggle-light-icon">light_mode</span>
+      </button>
+      {% if user.is_authenticated %}
+      <a href="{% url 'profile' %}" class="flex items-center gap-2 bg-primary-fixed dark:bg-blue-900/30 text-primary dark:text-blue-400 px-5 py-2.5 rounded-full font-bold text-sm hover:opacity-90 transition-all">
+        <div class="w-6 h-6 bg-primary rounded-lg flex items-center justify-center text-white text-[10px] font-black">{{ user.first_name.0 }}{{ user.last_name.0 }}</div>
+        {{ user.first_name }}
+      </a>
+      <a href="{% url 'logout' %}" class="text-on-surface-variant dark:text-slate-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20" title="Logout">
+        <span class="material-symbols-outlined text-xl">logout</span>
+      </a>
+      {% else %}
+      <a href="{% url 'login_page' %}" class="bg-primary text-on-primary px-8 py-2.5 rounded-full font-bold text-sm shadow-sm hover:opacity-90 transition-all">Login</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<main class="pt-32 pb-20 max-w-7xl mx-auto px-6 md:px-12">
+  <header class="mb-12" data-aos="fade-up">
+    <h1 class="text-4xl md:text-5xl font-black text-primary dark:text-blue-400 tracking-tight mb-3">Learn ISL</h1>
+    <p class="text-on-surface-variant dark:text-slate-400 font-medium text-lg max-w-2xl leading-relaxed">Master the ISL alphabet with guided practice — watch the sign, repeat 5 times, then sign solo to master it!</p>
+  </header>
+
+  <div class="flex flex-col lg:flex-row gap-12">
+    <div class="flex-1 space-y-10">
+      <!-- Practice Panel -->
+      <section class="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-outline-variant/10 dark:border-slate-800 p-10 relative overflow-hidden" data-aos="fade-up">
+        <!-- Confetti container -->
+        <div id="confettiContainer" class="absolute inset-0 pointer-events-none z-50 overflow-hidden"></div>
+
+        <div class="flex justify-between items-center mb-8">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-primary-fixed dark:bg-blue-900/30 text-primary dark:text-blue-400 flex items-center justify-center"><span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">psychology</span></div>
+            <h2 class="text-xl font-black dark:text-white">Interactive Practice</h2>
+          </div>
+          <div class="flex items-center gap-2 px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-widest" id="practice-status">
+            <span class="w-1.5 h-1.5 rounded-full animate-pulse" id="status-dot"></span>
+            <span id="status-text">Guided Mode</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <!-- Webcam -->
+          <div class="aspect-square bg-surface-variant/30 dark:bg-slate-800 rounded-[2rem] relative overflow-hidden" id="webcamContainer">
+            <video id="practiceVideo" autoplay playsinline></video>
+            <canvas id="practiceCanvas" width="300" height="300" class="hidden"></canvas>
+            <div class="absolute bottom-4 left-4 flex items-center gap-2 px-3 py-1.5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-widest text-on-surface dark:text-white" id="camStatus">
+              <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> Connecting...
+            </div>
+            <button class="absolute top-4 right-4 glass p-2 rounded-xl text-primary dark:text-blue-400 hover:bg-white transition-all" onclick="toggleFullscreen2()">
+              <span class="material-symbols-outlined">fullscreen</span>
+            </button>
+            <div class="absolute top-4 left-4 glass px-4 py-2 rounded-xl">
+              <div class="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant dark:text-slate-400">Detected</div>
+              <div class="text-3xl font-black text-primary dark:text-blue-400" id="liveDetect">—</div>
+            </div>
+          </div>
+
+          <!-- Target + Reference + Feedback -->
+          <div class="flex flex-col justify-between space-y-5">
+            <!-- Target Letter -->
+            <div class="bg-primary-fixed dark:bg-blue-900/20 rounded-[2rem] p-6">
+              <span class="text-[10px] font-bold text-on-surface-variant dark:text-slate-400 uppercase tracking-[0.2em] mb-3 block">Target Letter</span>
+              <div class="flex items-center justify-between">
+                <span class="text-7xl font-black text-primary dark:text-blue-400 tracking-tighter" id="targetLetter">A</span>
+                <!-- Progress Ring -->
+                <div class="relative w-20 h-20">
+                  <svg class="progress-ring w-20 h-20" viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="34" stroke-width="5" fill="none" class="stroke-surface-variant dark:stroke-slate-700"/>
+                    <circle cx="40" cy="40" r="34" stroke-width="5" fill="none" class="progress-ring__circle stroke-primary dark:stroke-blue-400" stroke-linecap="round" id="progressCircle" style="stroke-dasharray:213.6;stroke-dashoffset:213.6;"/>
+                  </svg>
+                  <div class="absolute inset-0 flex items-center justify-center">
+                    <span class="text-sm font-black text-primary dark:text-blue-400" id="ringText">0/5</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Reference Image Panel (shows during guided mode) -->
+            <div class="rounded-[2rem] border border-outline-variant/10 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden relative" id="referencePanel">
+              <div class="p-4 border-b border-outline-variant/10 dark:border-slate-700 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-primary dark:text-blue-400 text-lg" style="font-variation-settings:'FILL' 1">visibility</span>
+                  <span class="text-[10px] font-black uppercase tracking-widest text-on-surface-variant dark:text-slate-400" id="refLabel">Reference — Watch & Repeat</span>
+                </div>
+                <div class="flex items-center gap-1 px-2 py-0.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 rounded-full">
+                  <span class="material-symbols-outlined text-amber-500 text-xs">auto_awesome</span>
+                  <span class="text-[9px] font-bold text-amber-600 dark:text-amber-400 uppercase" id="phaseLabel">Guided</span>
+                </div>
+              </div>
+              <div class="p-6 flex items-center justify-center min-h-[120px]" id="refImageContainer">
+                <img id="refImage" class="w-full max-w-[240px] h-auto object-contain" src="" alt="ISL Reference"/>
+              </div>
+            </div>
+
+            <!-- Feedback -->
+            <div class="p-5 rounded-[2rem] border border-outline-variant/10 dark:border-slate-700 bg-surface-variant/30 dark:bg-slate-800 min-h-[70px]" id="feedbackBox">
+              <div class="flex items-center gap-3 mb-1">
+                <span class="material-symbols-outlined text-on-surface-variant dark:text-slate-400 text-xl">info</span>
+                <span class="font-bold text-sm dark:text-white">Show your hand</span>
+              </div>
+              <p class="text-sm text-on-surface-variant dark:text-slate-400 font-medium">Sign the target letter. Match it 5 times with guidance, then solo!</p>
+            </div>
+
+            <!-- Navigation -->
+            <div class="flex gap-4">
+              <button id="nextLetterBtn" class="flex-1 bg-primary text-on-primary py-4 px-6 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-sm">
+                Next Letter <span class="material-symbols-outlined text-lg">east</span>
+              </button>
+              <button id="retryBtn" class="px-8 py-4 bg-surface-variant dark:bg-slate-800 text-on-surface dark:text-white border border-outline-variant/20 dark:border-slate-700 rounded-2xl font-black text-sm hover:bg-outline-variant/20 transition-all">Retry</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Alphabet Grid -->
+      <section data-aos="fade-up">
+        <div class="flex items-center justify-between mb-8">
+          <h2 class="text-2xl font-black tracking-tight dark:text-white">ISL Alphabet</h2>
+        </div>
+        <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3" id="alphabetGrid">
+          {% for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" %}
+          <button class="letter-card bg-white dark:bg-slate-900 p-3 rounded-2xl border border-outline-variant/10 dark:border-slate-800 flex flex-col items-center gap-1.5 hover:border-primary/30 dark:hover:border-blue-500/30 cursor-pointer relative" data-letter="{{ letter }}" onclick="selectLetter('{{ letter }}')">
+            <span class="text-xl font-black text-primary dark:text-blue-400">{{ letter }}</span>
+            <span class="text-[8px] font-bold uppercase tracking-widest text-on-surface-variant dark:text-slate-500 letter-status" id="status-{{ letter }}">New</span>
+          </button>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="w-full lg:w-80 space-y-8">
+      <section class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800 shadow-sm" data-aos="fade-left">
+        <h3 class="font-black text-sm uppercase tracking-widest text-primary dark:text-blue-400 mb-8 flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">analytics</span> Your Progress
+        </h3>
+        <div class="space-y-8">
+          <div>
+            <div class="flex justify-between items-end mb-3">
+              <span class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant dark:text-slate-500">Letters Mastered</span>
+              <span class="text-2xl font-black text-primary dark:text-blue-400 tracking-tight" id="progressCount">0 / 26</span>
+            </div>
+            <div class="w-full h-2 bg-surface-variant dark:bg-slate-800 rounded-full overflow-hidden">
+              <div class="h-full bg-primary dark:bg-blue-500 rounded-full transition-all duration-500" id="progressBar" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div class="bg-surface-variant/50 dark:bg-slate-800 p-4 rounded-2xl text-center">
+              <p class="text-[9px] font-bold text-on-surface-variant dark:text-slate-500 uppercase tracking-[0.2em] mb-1">Guided</p>
+              <p class="text-lg font-black text-primary dark:text-blue-400" id="guidedCount">0</p>
+            </div>
+            <div class="bg-surface-variant/50 dark:bg-slate-800 p-4 rounded-2xl text-center">
+              <p class="text-[9px] font-bold text-on-surface-variant dark:text-slate-500 uppercase tracking-[0.2em] mb-1">Solo</p>
+              <p class="text-lg font-black text-primary dark:text-blue-400" id="soloCount">0</p>
+            </div>
+            <div class="bg-surface-variant/50 dark:bg-slate-800 p-4 rounded-2xl text-center">
+              <p class="text-[9px] font-bold text-on-surface-variant dark:text-slate-500 uppercase tracking-[0.2em] mb-1">Mastered</p>
+              <p class="text-lg font-black text-green-500" id="masteredCount">0</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- How It Works -->
+      <section class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800 shadow-sm" data-aos="fade-left" data-aos-delay="100">
+        <h3 class="font-black text-sm uppercase tracking-widest text-primary dark:text-blue-400 mb-6">How It Works</h3>
+        <ol class="space-y-4 text-sm">
+          <li class="flex gap-3 items-start">
+            <span class="w-6 h-6 bg-primary text-white rounded-lg flex items-center justify-center text-xs font-black shrink-0">1</span>
+            <span class="text-on-surface-variant dark:text-slate-400"><strong class="text-on-surface dark:text-white">Watch</strong> — See the reference sign image</span>
+          </li>
+          <li class="flex gap-3 items-start">
+            <span class="w-6 h-6 bg-primary text-white rounded-lg flex items-center justify-center text-xs font-black shrink-0">2</span>
+            <span class="text-on-surface-variant dark:text-slate-400"><strong class="text-on-surface dark:text-white">Repeat ×5</strong> — Match it 5 times with guidance</span>
+          </li>
+          <li class="flex gap-3 items-start">
+            <span class="w-6 h-6 bg-primary text-white rounded-lg flex items-center justify-center text-xs font-black shrink-0">3</span>
+            <span class="text-on-surface-variant dark:text-slate-400"><strong class="text-on-surface dark:text-white">Solo ×3</strong> — Reference hides, sign on your own</span>
+          </li>
+          <li class="flex gap-3 items-start">
+            <span class="w-6 h-6 bg-green-500 text-white rounded-lg flex items-center justify-center text-xs font-black shrink-0">✓</span>
+            <span class="text-on-surface-variant dark:text-slate-400"><strong class="text-green-600 dark:text-green-400">Mastered!</strong> — Move to the next letter 🎉</span>
+          </li>
+        </ol>
+      </section>
+
+      <section class="bg-primary text-on-primary p-10 rounded-[2.5rem] space-y-6 relative overflow-hidden shadow-sm" data-aos="fade-left" data-aos-delay="200">
+        <div class="absolute -right-8 -top-8 opacity-10"><span class="material-symbols-outlined text-9xl">lightbulb</span></div>
+        <h3 class="text-xl font-black">Tips</h3>
+        <ul class="space-y-4 text-sm font-medium opacity-90 relative z-10">
+          <li class="flex gap-3"><span class="material-symbols-outlined text-lg">check_circle</span><span>Keep hands fully within camera frame</span></li>
+          <li class="flex gap-3"><span class="material-symbols-outlined text-lg">check_circle</span><span>Use neutral background for best accuracy</span></li>
+          <li class="flex gap-3"><span class="material-symbols-outlined text-lg">check_circle</span><span>Hold sign steady for at least 1 second</span></li>
+        </ul>
+      </section>
+
+      <section class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800 shadow-sm" data-aos="fade-left" data-aos-delay="300">
+        <h3 class="font-black text-sm uppercase tracking-widest text-primary dark:text-blue-400 mb-4">Quick Links</h3>
+        <div class="space-y-2">
+          <a href="{% url 'recognize' %}" class="flex items-center justify-between p-3 rounded-2xl hover:bg-surface-variant dark:hover:bg-slate-800 transition-all group">
+            <span class="text-sm font-semibold text-on-surface dark:text-white">Try Sign Recognition</span>
+            <span class="material-symbols-outlined text-on-surface-variant dark:text-slate-500 group-hover:translate-x-1 transition-transform">east</span>
+          </a>
+          <a href="{% url 'text_to_isl' %}" class="flex items-center justify-between p-3 rounded-2xl hover:bg-surface-variant dark:hover:bg-slate-800 transition-all group">
+            <span class="text-sm font-semibold text-on-surface dark:text-white">Text → ISL Avatar</span>
+            <span class="material-symbols-outlined text-on-surface-variant dark:text-slate-500 group-hover:translate-x-1 transition-transform">east</span>
+          </a>
+        </div>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<script>
+  // Theme
+  const html = document.documentElement;
+  function applyTheme(t) {
+    if (t === 'dark') { html.classList.add('dark'); document.getElementById('theme-toggle-light-icon').classList.add('hidden'); document.getElementById('theme-toggle-dark-icon').classList.remove('hidden'); }
+    else { html.classList.remove('dark'); document.getElementById('theme-toggle-dark-icon').classList.add('hidden'); document.getElementById('theme-toggle-light-icon').classList.remove('hidden'); }
+  }
+  applyTheme(localStorage.getItem('theme') || 'light');
+  document.getElementById('theme-toggle').addEventListener('click', () => { const n = html.classList.contains('dark')?'light':'dark'; localStorage.setItem('theme',n); applyTheme(n); });
+  AOS.init({ once:true, duration:800, easing:'ease-out-quad' });
+
+  // ISL reference — inline SVG hand descriptions (no external images needed)
+  const ISL_DESCS = {
+    A:'Closed fist, thumb up beside index finger',B:'Flat open hand, fingers together pointing up, thumb across palm',C:'Curved hand forming a C shape',D:'Index finger up, other fingers curled, thumb touching middle finger',E:'All fingers curled down, thumb across fingertips',F:'OK sign — thumb and index circle, other 3 fingers up',G:'Fist with index finger and thumb pointing sideways',H:'Index and middle fingers extended sideways together',I:'Fist with pinky finger extended up',J:'Pinky up, trace a J curve motion downward',K:'Index and middle fingers in V, thumb between them',L:'L shape — thumb and index at right angle',M:'Three fingers over thumb, fist shape',N:'Two fingers over thumb, fist shape',O:'All fingers curved to touch thumb, forming O',P:'K handshape pointing downward',Q:'G handshape pointing downward',R:'Index and middle crossed, other fingers closed',S:'Closed fist, thumb across fingers',T:'Thumb between index and middle, fist shape',U:'Index and middle fingers extended up together',V:'Index and middle in V shape, spread apart',W:'Index, middle and ring up spread, thumb on pinky',X:'Index finger hooked/bent, fist shape',Y:'Thumb and pinky extended, fist with 3 middle fingers',Z:'Index finger traces Z shape in air'
+  };
+  const ISL_REFS = {};
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l => {
+    const desc = ISL_DESCS[l] || '';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160"><rect width="240" height="160" rx="16" fill="%231e40af" opacity="0.08"/><text x="32" y="75" font-family="Manrope,sans-serif" font-size="56" font-weight="800" fill="%231e40af">${l}</text><text x="32" y="105" font-family="Inter,sans-serif" font-size="11" fill="%2364748b" font-weight="500"><tspan x="32" dy="0">${desc.substring(0,35)}</tspan><tspan x="32" dy="16">${desc.substring(35,70)}</tspan><tspan x="32" dy="16">${desc.substring(70)}</tspan></text></svg>`;
+    ISL_REFS[l] = 'data:image/svg+xml,' + encodeURIComponent(svg);
+  });
+
+  // State
+  const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const GUIDED_REQUIRED = 5;
+  const SOLO_REQUIRED = 3;
+  let currentLetter = 'A';
+  let phase = 'guided'; // 'guided' or 'solo'
+  let guidedMatches = 0;
+  let soloMatches = 0;
+  let requestActive = false;
+  let consecutiveMatch = 0;
+  const MATCH_THRESHOLD = 5; // frames needed
+  let lastMatchTime = 0;
+  let masteredLetters = new Set();
+  let guidedCompletedLetters = new Set();
+  let soloCompletedLetters = new Set();
+  let totalGuided = 0, totalSolo = 0;
+
+  // Load saved progress — server-side first, then localStorage fallback
+  const IS_AUTHENTICATED = {{ is_authenticated|default:"false"|lower }};
+  const SERVER_MASTERED = JSON.parse('{{ saved_mastered|default:"[]"|escapejs }}');
+  const SERVER_GUIDED = JSON.parse('{{ saved_guided|default:"[]"|escapejs }}');
+
+  try {
+    if (IS_AUTHENTICATED && SERVER_MASTERED.length > 0) {
+      // Server data takes priority
+      masteredLetters = new Set(SERVER_MASTERED);
+      guidedCompletedLetters = new Set(SERVER_GUIDED);
+    } else {
+      // Fallback to localStorage
+      const saved = JSON.parse(localStorage.getItem('isl_progress') || '{}');
+      if (saved.mastered) { masteredLetters = new Set(saved.mastered); }
+      if (saved.guided) { guidedCompletedLetters = new Set(saved.guided); }
+    }
+  } catch(e){}
+
+  function saveProgress() {
+    // Always save to localStorage
+    const data = {
+      mastered: Array.from(masteredLetters),
+      guided: Array.from(guidedCompletedLetters)
+    };
+    localStorage.setItem('isl_progress', JSON.stringify(data));
+
+    // If logged in, also save to server
+    if (IS_AUTHENTICATED) {
+      fetch("{% url 'save_progress' %}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify(data)
+      }).catch(err => console.log('[SilentTalk] Server save failed:', err));
+    }
+  }
+
+  // UI helpers
+  const circumference = 2 * Math.PI * 34; // r=34
+
+  function updateProgressRing() {
+    const total = phase === 'guided' ? GUIDED_REQUIRED : SOLO_REQUIRED;
+    const current = phase === 'guided' ? guidedMatches : soloMatches;
+    const pct = current / total;
+    const offset = circumference * (1 - pct);
+    document.getElementById('progressCircle').style.strokeDashoffset = offset;
+    document.getElementById('ringText').textContent = current + '/' + total;
+  }
+
+  function updatePhaseStatus() {
+    const statusEl = document.getElementById('practice-status');
+    const dotEl = document.getElementById('status-dot');
+    const textEl = document.getElementById('status-text');
+    if (phase === 'guided') {
+      statusEl.className = 'flex items-center gap-2 px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-widest bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 text-amber-600 dark:text-amber-400';
+      dotEl.className = 'w-1.5 h-1.5 rounded-full animate-pulse bg-amber-500';
+      textEl.textContent = 'Guided Mode';
+      document.getElementById('phaseLabel').textContent = 'Guided';
+    } else {
+      statusEl.className = 'flex items-center gap-2 px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-widest bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800/30 text-purple-600 dark:text-purple-400';
+      dotEl.className = 'w-1.5 h-1.5 rounded-full animate-pulse bg-purple-500';
+      textEl.textContent = 'Solo Mode';
+      document.getElementById('phaseLabel').textContent = 'Solo';
+    }
+  }
+
+  function updateAlphabetGrid() {
+    ALPHABET.forEach(l => {
+      const statusEl = document.getElementById('status-' + l);
+      const card = document.querySelector(`[data-letter="${l}"]`);
+      if (masteredLetters.has(l)) {
+        statusEl.textContent = '✅ Done';
+        statusEl.className = 'text-[8px] font-bold uppercase tracking-widest text-green-500';
+        card.classList.add('border-green-200', 'dark:border-green-800/30');
+      } else if (guidedCompletedLetters.has(l)) {
+        statusEl.textContent = '📖 Solo';
+        statusEl.className = 'text-[8px] font-bold uppercase tracking-widest text-purple-500';
+      } else if (l === currentLetter) {
+        statusEl.textContent = '▶ Active';
+        statusEl.className = 'text-[8px] font-bold uppercase tracking-widest text-primary dark:text-blue-400';
+      } else {
+        statusEl.textContent = 'New';
+        statusEl.className = 'text-[8px] font-bold uppercase tracking-widest text-on-surface-variant dark:text-slate-500';
+      }
+    });
+  }
+
+  function updateGlobalProgress() {
+    document.getElementById('progressCount').textContent = masteredLetters.size + ' / 26';
+    document.getElementById('progressBar').style.width = Math.round((masteredLetters.size / 26) * 100) + '%';
+    document.getElementById('guidedCount').textContent = guidedCompletedLetters.size;
+    document.getElementById('soloCount').textContent = soloCompletedLetters.size;
+    document.getElementById('masteredCount').textContent = masteredLetters.size;
+  }
+
+  function showReference(letter) {
+    const panel = document.getElementById('referencePanel');
+    panel.classList.remove('slide-out');
+    panel.style.display = 'block';
+    document.getElementById('refImage').src = ISL_REFS[letter] || '';
+    document.getElementById('refLabel').textContent = 'Reference — Watch & Repeat';
+  }
+
+  function hideReference() {
+    const panel = document.getElementById('referencePanel');
+    panel.classList.add('slide-out');
+    setTimeout(() => { panel.style.display = 'none'; }, 800);
+  }
+
+  function showFeedback(type, msg, detail) {
+    const box = document.getElementById('feedbackBox');
+    const webcam = document.getElementById('webcamContainer');
+    if (type === 'correct') {
+      box.innerHTML = `<div class="flex items-center gap-3 mb-1"><span class="material-symbols-outlined text-green-500 text-xl" style="font-variation-settings:'FILL' 1">check_circle</span><span class="font-bold text-sm text-green-600 dark:text-green-400">${msg}</span></div><p class="text-sm text-on-surface-variant dark:text-slate-400 font-medium">${detail}</p>`;
+      webcam.classList.add('correct-pulse');
+      setTimeout(() => webcam.classList.remove('correct-pulse'), 800);
+    } else if (type === 'wrong') {
+      box.innerHTML = `<div class="flex items-center gap-3 mb-1"><span class="material-symbols-outlined text-red-400 text-xl">close</span><span class="font-bold text-sm text-red-500 dark:text-red-400">${msg}</span></div><p class="text-sm text-on-surface-variant dark:text-slate-400 font-medium">${detail}</p>`;
+      webcam.classList.add('wrong-shake');
+      setTimeout(() => webcam.classList.remove('wrong-shake'), 400);
+    } else if (type === 'celebrate') {
+      box.innerHTML = `<div class="flex items-center gap-3 mb-1"><span class="material-symbols-outlined text-green-500 text-xl" style="font-variation-settings:'FILL' 1">celebration</span><span class="font-bold text-sm text-green-600 dark:text-green-400">${msg}</span></div><p class="text-sm text-on-surface-variant dark:text-slate-400 font-medium">${detail}</p>`;
+      launchConfetti();
+    } else {
+      box.innerHTML = `<div class="flex items-center gap-3 mb-1"><span class="material-symbols-outlined text-on-surface-variant dark:text-slate-400 text-xl">info</span><span class="font-bold text-sm dark:text-white">${msg}</span></div><p class="text-sm text-on-surface-variant dark:text-slate-400 font-medium">${detail}</p>`;
+    }
+  }
+
+  function launchConfetti() {
+    const container = document.getElementById('confettiContainer');
+    const colors = ['#1e40af','#3b82f6','#22c55e','#eab308','#ef4444','#8b5cf6','#ec4899'];
+    for (let i = 0; i < 40; i++) {
+      const piece = document.createElement('div');
+      piece.className = 'confetti-piece';
+      piece.style.left = Math.random() * 100 + '%';
+      piece.style.top = '-10px';
+      piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+      piece.style.animationDelay = Math.random() * 0.5 + 's';
+      piece.style.animationDuration = (1.5 + Math.random()) + 's';
+      container.appendChild(piece);
+    }
+    setTimeout(() => { container.innerHTML = ''; }, 3000);
+  }
+
+  function selectLetter(l) {
+    currentLetter = l;
+    consecutiveMatch = 0;
+    lastMatchTime = 0;
+
+    // Determine phase based on progress
+    if (masteredLetters.has(l)) {
+      phase = 'solo'; guidedMatches = GUIDED_REQUIRED; soloMatches = SOLO_REQUIRED;
+    } else if (guidedCompletedLetters.has(l)) {
+      phase = 'solo'; guidedMatches = GUIDED_REQUIRED; soloMatches = 0;
+    } else {
+      phase = 'guided'; guidedMatches = 0; soloMatches = 0;
+    }
+
+    document.getElementById('targetLetter').textContent = l;
+    document.querySelectorAll('[data-letter]').forEach(el => { el.classList.remove('ring-2', 'ring-primary', 'dark:ring-blue-500'); });
+    const el = document.querySelector(`[data-letter="${l}"]`);
+    if (el) el.classList.add('ring-2', 'ring-primary', 'dark:ring-blue-500');
+
+    if (phase === 'guided') {
+      showReference(l);
+      showFeedback('info', 'Sign the letter ' + l, `Match it ${GUIDED_REQUIRED} times with guidance visible. (${guidedMatches}/${GUIDED_REQUIRED})`);
+    } else if (masteredLetters.has(l)) {
+      hideReference();
+      showFeedback('celebrate', 'Already Mastered! 🏆', 'You\'ve mastered letter ' + l + '. Try another!');
+    } else {
+      hideReference();
+      showFeedback('info', 'Solo Mode — ' + l, `Reference removed! Sign ${SOLO_REQUIRED} times on your own. (${soloMatches}/${SOLO_REQUIRED})`);
+    }
+
+    updatePhaseStatus();
+    updateProgressRing();
+    updateAlphabetGrid();
+  }
+
+  function registerCorrectMatch() {
+    const now = Date.now();
+    if (now - lastMatchTime < 1200) return; // cooldown
+    lastMatchTime = now;
+
+    if (phase === 'guided') {
+      guidedMatches++;
+      updateProgressRing();
+      if (guidedMatches >= GUIDED_REQUIRED) {
+        // Transition to solo
+        guidedCompletedLetters.add(currentLetter);
+        totalGuided++;
+        phase = 'solo'; soloMatches = 0;
+        updateProgressRing();
+        updatePhaseStatus();
+        hideReference();
+        showFeedback('celebrate', 'Guided complete! 🎉', 'Reference is now hidden. Sign ' + currentLetter + ' ' + SOLO_REQUIRED + ' more times solo to master it!');
+        saveProgress();
+      } else {
+        showFeedback('correct', 'Correct! (' + guidedMatches + '/' + GUIDED_REQUIRED + ')', 'Keep going! ' + (GUIDED_REQUIRED - guidedMatches) + ' more guided matches needed.');
+      }
+    } else { // solo
+      if (masteredLetters.has(currentLetter)) return;
+      soloMatches++;
+      updateProgressRing();
+      if (soloMatches >= SOLO_REQUIRED) {
+        masteredLetters.add(currentLetter);
+        soloCompletedLetters.add(currentLetter);
+        totalSolo++;
+        showFeedback('celebrate', '🏆 Letter ' + currentLetter + ' MASTERED!', 'Amazing! You signed it perfectly without any reference. Move to the next letter!');
+        saveProgress();
+        updateGlobalProgress();
+      } else {
+        showFeedback('correct', 'Solo correct! (' + soloMatches + '/' + SOLO_REQUIRED + ')', (SOLO_REQUIRED - soloMatches) + ' more solo matches to master ' + currentLetter + '!');
+      }
+    }
+    updateAlphabetGrid();
+    updateGlobalProgress();
+  }
+
+  document.getElementById('nextLetterBtn').addEventListener('click', () => {
+    const idx = ALPHABET.indexOf(currentLetter);
+    selectLetter(ALPHABET[(idx + 1) % 26]);
+  });
+  document.getElementById('retryBtn').addEventListener('click', () => {
+    guidedCompletedLetters.delete(currentLetter);
+    masteredLetters.delete(currentLetter);
+    soloCompletedLetters.delete(currentLetter);
+    saveProgress();
+    selectLetter(currentLetter);
+  });
+
+  // Webcam
+  navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+    document.getElementById('practiceVideo').srcObject = stream;
+    document.getElementById('camStatus').innerHTML = '<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Camera Live';
+  }).catch(() => { document.getElementById('camStatus').textContent = 'Camera Error'; });
+
+  setInterval(function() {
+    if (requestActive) return;
+    const video = document.getElementById('practiceVideo');
+    const canvas = document.getElementById('practiceCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, 300, 300);
+    const frameData = canvas.toDataURL('image/jpeg', 0.6);
+    requestActive = true;
+    $.ajax({
+      url: "{% url 'predict' %}", type: 'POST', data: { frame: frameData },
+      success: function(data) {
+        requestActive = false;
+        const detected = data.letter || '—';
+        document.getElementById('liveDetect').textContent = detected;
+        if (detected && detected !== '—') {
+          if (detected === currentLetter) {
+            consecutiveMatch++;
+            if (consecutiveMatch >= MATCH_THRESHOLD) {
+              registerCorrectMatch();
+              consecutiveMatch = 0;
+            }
+          } else {
+            if (consecutiveMatch > 2) {
+              // They were trying but got it wrong
+            }
+            consecutiveMatch = 0;
+          }
+        } else {
+          consecutiveMatch = 0;
+        }
+      },
+      error: function() { requestActive = false; }
+    });
+  }, 400);
+
+  function toggleFullscreen2() { const v = document.getElementById('practiceVideo'); if (!document.fullscreenElement) v.requestFullscreen(); else document.exitFullscreen(); }
+
+  // Init
+  selectLetter('A');
+  updateGlobalProgress();
+  updateAlphabetGrid();
+</script>
+</body>
+</html>
