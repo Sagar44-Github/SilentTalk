@@ -1,0 +1,459 @@
+{% load static %}
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Text to ISL | Silent Talk</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>
+
+<!-- CWASA Avatar Engine -->
+<link rel="stylesheet" href="{% static 'recognition/css/cwasa.css' %}"/>
+<script type="text/javascript" src="{% static 'recognition/js/allcsa.js' %}?v=3"></script>
+<script language="javascript">
+  var STATIC_REL = "{% static 'recognition/' %}";
+  var STATIC_BASE = window.location.origin + STATIC_REL;
+  var initCfg = { "jasBase": STATIC_BASE, "avJARBase": "avatars", "useAvatarJARs": true, "useCwaConfig": false, "avsbsl": ["marc"], "avSettings": { "avList": "avsbsl", "initAv": "marc" } };
+  var sigmlList = null;
+  var tuavatarLoaded = false;
+</script>
+
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode:"class",
+    theme:{ extend:{ colors:{ "primary-fixed":"#e0e7ff","on-surface-variant":"#64748b","on-surface":"#0f172a","surface-variant":"#f1f5f9","outline-variant":"#e2e8f0","outline":"#94a3b8","primary":"#1e40af","background":"#f8fafc","on-primary":"#ffffff","surface":"#f8fafc","surface-container":"#f8fafc","surface-container-high":"#f1f5f9" }, fontFamily:{"headline":["Manrope"],"body":["Inter"]}, borderRadius:{"DEFAULT":"0.5rem","lg":"0.5rem","xl":"0.75rem","2xl":"1.5rem","3xl":"2.5rem","full":"9999px"} } }
+  }
+</script>
+<style>
+  body{font-family:'Inter',sans-serif;}h1,h2,h3{font-family:'Manrope',sans-serif;}
+  .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;}
+  .glass{background:rgba(255,255,255,0.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);}
+  .dark .glass{background:rgba(15,23,42,0.7);border:1px solid rgba(255,255,255,0.05);}
+  .avatar-controls{display:none;}
+  .CWASAAvatar{width:100%!important;height:100%!important;}
+  /* Zoom the entire avatar container for upper body crop */
+  .avatar-frame{overflow:hidden!important;}
+  .CWASAAvatar{transform:scale(1.5) translateY(-8%);transform-origin:center center;transition:transform 0.3s ease;}
+  /* Loading overlay */
+  #loadingOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,rgba(15,23,42,0.95),rgba(30,58,138,0.9));backdrop-filter:blur(30px);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:24px;z-index:1000;}
+  #loadingOverlay p{color:#94a3b8;font-size:14px;font-weight:600;letter-spacing:0.05em;}
+  /* Animated avatar silhouette */
+  .avatar-silhouette{width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(139,92,246,0.15));display:flex;align-items:center;justify-content:center;position:relative;}
+  .avatar-silhouette::before{content:'';width:140px;height:140px;border-radius:50%;border:2px solid rgba(59,130,246,0.2);position:absolute;animation:silhouettePulse 2s ease-in-out infinite;}
+  .avatar-silhouette::after{content:'';width:160px;height:160px;border-radius:50%;border:1px solid rgba(59,130,246,0.1);position:absolute;animation:silhouettePulse 2s ease-in-out infinite 0.5s;}
+  .avatar-silhouette .material-symbols-outlined{font-size:48px;color:rgba(59,130,246,0.5);animation:silhouetteBreathe 3s ease-in-out infinite;}
+  @keyframes silhouettePulse{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.1);opacity:0.5;}}
+  @keyframes silhouetteBreathe{0%,100%{opacity:0.4;transform:scale(1);}50%{opacity:0.7;transform:scale(1.05);}}
+  .loading-bar{width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:99px;overflow:hidden;}
+  .loading-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:99px;animation:loadingFill 12s ease-out forwards;}
+  @keyframes loadingFill{0%{width:0%;}50%{width:70%;}90%{width:95%;}100%{width:100%;}}
+  /* Avatar container premium */
+  .avatar-frame{position:relative;background:linear-gradient(160deg,#dbeafe,#e0e7ff,#ede9fe);border-radius:2.5rem;overflow:hidden;box-shadow:0 8px 40px -8px rgba(30,64,175,0.15),0 0 0 1px rgba(30,64,175,0.05);}
+  .dark .avatar-frame{background:linear-gradient(160deg,#0f172a,#1e1b4b,#1e1b4b);box-shadow:0 8px 40px -8px rgba(59,130,246,0.1),0 0 0 1px rgba(59,130,246,0.1);}
+  /* Floating grid decoration */
+  .avatar-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(30,64,175,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(30,64,175,0.03) 1px,transparent 1px);background-size:30px 30px;pointer-events:none;}
+  .dark .avatar-grid{background-image:linear-gradient(rgba(59,130,246,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,0.04) 1px,transparent 1px);}
+  /* Glow ring */
+  .avatar-glow{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);width:200px;height:60px;background:radial-gradient(ellipse,rgba(30,64,175,0.15),transparent 70%);pointer-events:none;}
+  .dark .avatar-glow{background:radial-gradient(ellipse,rgba(59,130,246,0.12),transparent 70%);}
+  /* Floating particles */
+  .av-particle{position:absolute;width:4px;height:4px;border-radius:50%;background:rgba(30,64,175,0.15);pointer-events:none;}
+  .dark .av-particle{background:rgba(59,130,246,0.15);}
+  .av-particle:nth-child(1){top:15%;left:10%;animation:avFloat 8s ease-in-out infinite;}
+  .av-particle:nth-child(2){top:70%;left:85%;animation:avFloat 6s ease-in-out infinite 1s;}
+  .av-particle:nth-child(3){top:30%;left:80%;animation:avFloat 10s ease-in-out infinite 2s;width:6px;height:6px;}
+  .av-particle:nth-child(4){top:85%;left:20%;animation:avFloat 7s ease-in-out infinite 0.5s;width:3px;height:3px;}
+  @keyframes avFloat{0%,100%{transform:translate(0,0) scale(1);opacity:0.4;}50%{transform:translate(10px,-15px) scale(1.5);opacity:0.8;}}
+  /* Current word overlay glow */
+  .word-overlay{background:rgba(15,23,42,0.6);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.08);box-shadow:0 -8px 32px rgba(30,64,175,0.1);}
+  /* Quick phrase hover */
+  .quick-phrase:hover{background:rgba(30,64,175,0.1)!important;color:#1e40af!important;}
+  .dark .quick-phrase:hover{background:rgba(59,130,246,0.15)!important;color:#60a5fa!important;}
+  /* Token chip */
+  .token-signing{background:linear-gradient(135deg,#1e40af,#3b82f6)!important;color:white!important;animation:chipPulse 1.5s infinite;box-shadow:0 4px 12px rgba(30,64,175,0.3);}
+  .token-done{opacity:0.35!important;}
+  @keyframes chipPulse{0%,100%{box-shadow:0 0 0 0 rgba(30,64,175,0.3);}50%{box-shadow:0 0 0 8px rgba(30,64,175,0);}}
+  /* Mic button active */
+  .btn-listening{background:linear-gradient(135deg,#ef4444,#dc2626)!important;animation:micPulse 1.5s infinite;}
+  @keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.4);}50%{box-shadow:0 0 0 12px rgba(239,68,68,0);}}
+</style>
+</head>
+
+<body class="bg-background text-on-surface dark:bg-slate-950 dark:text-slate-200 transition-colors duration-300" onload="CWASA.init(initCfg);">
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay">
+  <div class="avatar-silhouette">
+    <span class="material-symbols-outlined">accessibility_new</span>
+  </div>
+  <div class="text-center">
+    <p class="text-white/80 text-sm font-bold tracking-wide mb-2">Loading 3D Avatar Engine</p>
+    <p class="text-slate-500 text-xs">Preparing sign language animations...</p>
+  </div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<!-- Navbar -->
+<nav class="fixed top-0 w-full z-[100] glass border-b border-outline-variant/10 dark:border-slate-800/50">
+  <div class="flex justify-between items-center max-w-7xl mx-auto px-6 md:px-12 h-20">
+    <a href="{% url 'landing' %}" class="text-2xl font-extrabold tracking-tighter text-primary dark:text-blue-400 flex items-center gap-2">
+      <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white shadow-sm rotate-12"><span class="material-symbols-outlined text-sm">waving_hand</span></div>Silent Talk
+    </a>
+    <div class="hidden md:flex items-center gap-10 font-semibold text-sm tracking-tight">
+      <a class="text-on-surface-variant hover:text-primary dark:hover:text-blue-400 transition-colors" href="{% url 'landing' %}">Home</a>
+      <a class="text-on-surface-variant hover:text-primary dark:hover:text-blue-400 transition-colors" href="{% url 'recognize' %}">Sign→Text</a>
+      <a class="text-primary dark:text-blue-400 relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-primary" href="{% url 'text_to_isl' %}">Text→ISL</a>
+      <a class="text-on-surface-variant hover:text-primary dark:hover:text-blue-400 transition-colors" href="{% url 'learn_isl' %}">Learn ISL</a>
+    </div>
+    <div class="flex items-center gap-4">
+      <button class="p-2 rounded-full hover:bg-surface-variant dark:hover:bg-slate-700 transition-colors" id="theme-toggle">
+        <span class="material-symbols-outlined text-2xl hidden" id="theme-toggle-dark-icon">dark_mode</span>
+        <span class="material-symbols-outlined text-2xl" id="theme-toggle-light-icon">light_mode</span>
+      </button>
+      {% if user.is_authenticated %}
+      <a href="{% url 'profile' %}" class="flex items-center gap-2 bg-primary-fixed dark:bg-blue-900/30 text-primary dark:text-blue-400 px-5 py-2.5 rounded-full font-bold text-sm hover:opacity-90 transition-all">
+        <div class="w-6 h-6 bg-primary rounded-lg flex items-center justify-center text-white text-[10px] font-black">{{ user.first_name.0 }}{{ user.last_name.0 }}</div>
+        {{ user.first_name }}
+      </a>
+      <a href="{% url 'logout' %}" class="text-on-surface-variant dark:text-slate-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20" title="Logout">
+        <span class="material-symbols-outlined text-xl">logout</span>
+      </a>
+      {% else %}
+      <a href="{% url 'login_page' %}" class="bg-primary text-on-primary px-8 py-2.5 rounded-full font-bold text-sm shadow-sm hover:opacity-90 transition-all">Login</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<main class="pt-32 pb-20 max-w-7xl mx-auto px-6 md:px-12">
+  <div class="flex flex-col lg:flex-row gap-12">
+    <!-- Left: Input -->
+    <div class="flex-1 space-y-10">
+      <div data-aos="fade-up">
+        <h1 class="text-4xl md:text-5xl font-black text-primary dark:text-blue-400 tracking-tight mb-3">Text → ISL</h1>
+        <p class="text-on-surface-variant dark:text-slate-400 font-medium text-lg">Convert natural language text and speech into Indian Sign Language animations.</p>
+      </div>
+
+      <!-- Input -->
+      <section class="bg-white dark:bg-slate-900 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800 p-8 space-y-6" data-aos="fade-up">
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-[10px] text-outline dark:text-slate-500 uppercase tracking-[0.2em]">Input Source</span>
+          <button class="p-1.5 hover:bg-surface-variant dark:hover:bg-slate-800 rounded transition-colors text-on-surface-variant" id="clearInputBtn" title="Clear All">
+            <span class="material-symbols-outlined text-lg">delete_sweep</span>
+          </button>
+        </div>
+        <textarea id="textInput" class="w-full bg-surface-variant/30 dark:bg-slate-800 border border-outline-variant/20 dark:border-slate-700 rounded-2xl p-6 text-on-surface dark:text-white placeholder:text-on-surface-variant/40 dark:placeholder:text-slate-600 focus:ring-2 focus:ring-primary/20 dark:focus:ring-blue-500/20 focus:outline-none min-h-[180px] text-lg font-medium resize-none transition-all" placeholder="Enter text or use the microphone to start signing..."></textarea>
+        <div class="flex flex-wrap items-center justify-between gap-4 pt-2">
+          <div class="flex gap-3">
+            <button id="translateBtn" class="px-6 py-2.5 bg-primary text-on-primary rounded-2xl font-black text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm">
+              <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1">auto_fix_high</span> Sign it
+            </button>
+            <button id="micBtn" class="w-10 h-10 rounded-2xl bg-surface-variant dark:bg-slate-800 text-on-surface dark:text-white hover:bg-primary hover:text-white flex items-center justify-center transition-all border border-outline-variant/20 dark:border-slate-700" title="Speech to Text">
+              <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1">mic</span>
+            </button>
+          </div>
+          <button id="stopBtn" class="px-4 py-2 text-on-surface-variant dark:text-slate-500 font-bold text-xs hover:text-red-500 transition-colors uppercase tracking-widest flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm">stop_circle</span> Stop
+          </button>
+        </div>
+      </section>
+
+      <!-- Quick Phrases -->
+      <section data-aos="fade-up">
+        <h3 class="font-black text-[11px] uppercase tracking-[0.2em] text-on-surface-variant dark:text-slate-500 mb-6 flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm">bolt</span> Quick Phrases
+        </h3>
+        <div class="flex flex-wrap gap-2">
+          <button class="quick-phrase px-3 py-1.5 bg-surface-variant/50 dark:bg-slate-800 text-on-surface-variant dark:text-slate-400 rounded-full text-xs font-medium border border-outline-variant dark:border-slate-700 transition-all">Hello how are you</button>
+          <button class="quick-phrase px-3 py-1.5 bg-surface-variant/50 dark:bg-slate-800 text-on-surface-variant dark:text-slate-400 rounded-full text-xs font-medium border border-outline-variant dark:border-slate-700 transition-all">My name is</button>
+          <button class="quick-phrase px-3 py-1.5 bg-surface-variant/50 dark:bg-slate-800 text-on-surface-variant dark:text-slate-400 rounded-full text-xs font-medium border border-outline-variant dark:border-slate-700 transition-all">Good morning</button>
+          <button class="quick-phrase px-3 py-1.5 bg-surface-variant/50 dark:bg-slate-800 text-on-surface-variant dark:text-slate-400 rounded-full text-xs font-medium border border-outline-variant dark:border-slate-700 transition-all">Thank you very much</button>
+          <button class="quick-phrase px-3 py-1.5 bg-surface-variant/50 dark:bg-slate-800 text-on-surface-variant dark:text-slate-400 rounded-full text-xs font-medium border border-outline-variant dark:border-slate-700 transition-all">I need help</button>
+          <button class="quick-phrase px-3 py-1.5 bg-surface-variant/50 dark:bg-slate-800 text-on-surface-variant dark:text-slate-400 rounded-full text-xs font-medium border border-outline-variant dark:border-slate-700 transition-all">Where is the exit</button>
+          <button class="quick-phrase px-3 py-1.5 bg-surface-variant/50 dark:bg-slate-800 text-on-surface-variant dark:text-slate-400 rounded-full text-xs font-medium border border-outline-variant dark:border-slate-700 transition-all">I am deaf</button>
+          <button class="quick-phrase px-3 py-1.5 bg-surface-variant/50 dark:bg-slate-800 text-on-surface-variant dark:text-slate-400 rounded-full text-xs font-medium border border-outline-variant dark:border-slate-700 transition-all">Nice to meet you</button>
+        </div>
+
+      </section>
+
+      <!-- Stats -->
+      <section class="grid grid-cols-2 md:grid-cols-4 gap-4" data-aos="fade-up">
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800">
+          <div class="text-[10px] font-bold text-on-surface-variant dark:text-slate-500 uppercase tracking-widest mb-2">Lexicon</div>
+          <div class="text-2xl font-black text-primary dark:text-blue-400 tracking-tight">850+</div>
+          <div class="text-[10px] text-on-surface-variant dark:text-slate-600 mt-1 uppercase opacity-60">Verified Signs</div>
+        </div>
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800">
+          <div class="text-[10px] font-bold text-on-surface-variant dark:text-slate-500 uppercase tracking-widest mb-2">Fallback</div>
+          <div class="text-2xl font-black text-primary dark:text-blue-400 tracking-tight">A–Z</div>
+          <div class="text-[10px] text-on-surface-variant dark:text-slate-600 mt-1 uppercase opacity-60">Fingerspelling</div>
+        </div>
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800">
+          <div class="text-[10px] font-bold text-on-surface-variant dark:text-slate-500 uppercase tracking-widest mb-2">Engine</div>
+          <div class="text-2xl font-black text-primary dark:text-blue-400 tracking-tight">JAS</div>
+          <div class="text-[10px] text-on-surface-variant dark:text-slate-600 mt-1 uppercase opacity-60">v4.2 Avatar</div>
+        </div>
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800">
+          <div class="text-[10px] font-bold text-on-surface-variant dark:text-slate-500 uppercase tracking-widest mb-2">Status</div>
+          <div class="text-lg font-black text-primary dark:text-blue-400 tracking-tight" id="status-display">Ready</div>
+          <div class="text-[10px] text-on-surface-variant dark:text-slate-600 mt-1 uppercase opacity-60">Engine Status</div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Right: Avatar + Queue -->
+    <aside class="w-full lg:w-[420px] space-y-8">
+      <!-- 3D Avatar —— Premium Container -->
+      <section class="avatar-frame relative" style="height:520px;" data-aos="fade-left">
+        <!-- Decorative grid -->
+        <div class="avatar-grid"></div>
+        <!-- Floating particles -->
+        <div class="av-particle"></div><div class="av-particle"></div><div class="av-particle"></div><div class="av-particle"></div>
+        <!-- Avatar (zoomed upper body) -->
+        <div class="CWASAAvatar av0 w-full h-full relative z-10"></div>
+        <!-- View Controls -->
+        <div class="absolute top-4 right-4 z-40 flex flex-col gap-2">
+          <button class="p-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-xl text-primary dark:text-blue-400 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm" onclick="zoomAvatar(1)" title="Zoom In">
+            <span class="material-symbols-outlined text-lg">zoom_in</span>
+          </button>
+          <button class="p-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-xl text-primary dark:text-blue-400 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm" onclick="zoomAvatar(-1)" title="Zoom Out">
+            <span class="material-symbols-outlined text-lg">zoom_out</span>
+          </button>
+          <button class="p-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-xl text-primary dark:text-blue-400 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm" onclick="resetAvatarZoom()" title="Reset View">
+            <span class="material-symbols-outlined text-lg">center_focus_strong</span>
+          </button>
+        </div>
+        <!-- Floor glow -->
+        <div class="avatar-glow z-20"></div>
+        <!-- Currently Signing Overlay -->
+        <div class="absolute bottom-0 left-0 w-full p-5 z-30">
+          <div class="word-overlay p-5 rounded-[1.5rem]">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
+                <span class="text-[10px] font-black uppercase tracking-widest text-white/60">Signing</span>
+              </div>
+              <span class="text-[10px] font-bold text-white/40 tracking-wider" id="queue-progress"></span>
+            </div>
+            <h2 class="text-2xl font-black text-white tracking-tight" id="currentWord">Ready</h2>
+            <div class="mt-3 h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+              <div class="h-full bg-gradient-to-r from-blue-400 to-purple-400 rounded-full transition-all duration-300" id="word-progress-bar" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Word Queue -->
+      <section class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800 shadow-sm" data-aos="fade-left" data-aos-delay="100">
+        <h3 class="font-black text-[11px] uppercase tracking-[0.2em] text-on-surface-variant dark:text-slate-500 mb-6">Transcription Queue</h3>
+        <div class="flex flex-wrap gap-2" id="token-chips">
+          <span class="text-sm text-on-surface-variant dark:text-slate-500">Tokens appear here...</span>
+        </div>
+      </section>
+
+      <!-- Speech Input Display -->
+      <section class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800 shadow-sm" data-aos="fade-left" data-aos-delay="200">
+        <h3 class="font-black text-[11px] uppercase tracking-[0.2em] text-on-surface-variant dark:text-slate-500 mb-4">Speech Input</h3>
+        <p class="text-base font-medium text-on-surface dark:text-white min-h-8" id="speechDisplay">—</p>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<!-- Hidden Avatar Controls (CWASA requires these) -->
+<div class="avatar-controls">
+  <span class="CWASAAvMenu av0"></span>
+  <input type="button" value="Sign" class="bttnPlaySiGMLURL av0"/>
+  <input type="button" value="Stop" class="bttnStop av0"/>
+  <span class="CWASASpeed av0"></span>
+  <input class="txtSF av0" value="0/0" type="text"/>
+  <input class="txtGloss av0" value="[none]" type="text"/>
+  <input type="text" id="URLText" class="txtSiGMLURL av0" value=""/>
+</div>
+
+<script type="text/javascript" src="{% static 'recognition/js/sigmlFiles.json' %}"></script>
+
+<script>
+  // Theme
+  const html = document.documentElement;
+  function applyTheme(t) {
+    if (t === 'dark') { html.classList.add('dark'); document.getElementById('theme-toggle-light-icon').classList.add('hidden'); document.getElementById('theme-toggle-dark-icon').classList.remove('hidden'); }
+    else { html.classList.remove('dark'); document.getElementById('theme-toggle-dark-icon').classList.add('hidden'); document.getElementById('theme-toggle-light-icon').classList.remove('hidden'); }
+  }
+  applyTheme(localStorage.getItem('theme') || 'light');
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const n = html.classList.contains('dark') ? 'light' : 'dark'; localStorage.setItem('theme', n); applyTheme(n);
+  });
+
+  // AOS
+  AOS.init({ once: true, duration: 800, easing: 'ease-out-quad' });
+
+  // Avatar zoom controls — must be on window for onclick
+  let avZoom = 1.5, avPanY = -8;
+  function applyAvatarZoom() {
+    const el = document.querySelector('.CWASAAvatar');
+    if (el) el.style.transform = `scale(${avZoom}) translateY(${avPanY}%)`;
+  }
+  window.zoomAvatar = function(dir) {
+    avZoom = Math.max(0.8, Math.min(2.5, avZoom + dir * 0.2));
+    if (dir > 0) avPanY = Math.max(-25, avPanY - 3);
+    else avPanY = Math.min(5, avPanY + 3);
+    applyAvatarZoom();
+  };
+  window.resetAvatarZoom = function() {
+    avZoom = 1.5; avPanY = -8;
+    applyAvatarZoom();
+  };
+
+  // Quick phrases
+  document.querySelectorAll('.quick-phrase').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('textInput').value = btn.textContent.trim();
+      translateText();
+    });
+  });
+
+  // Avatar Loading
+  var loadingCheck = setInterval(function() {
+    if (tuavatarLoaded) { document.getElementById('loadingOverlay').style.display = 'none'; clearInterval(loadingCheck); }
+  }, 1000);
+  setTimeout(function() { document.getElementById('loadingOverlay').style.display = 'none'; }, 15000);
+
+  // SiGML player
+  function setSiGMLURL(sigmlURL) {
+    sigmlURL = window.location.origin + "{% static 'recognition/' %}" + sigmlURL;
+    document.getElementById('URLText').value = sigmlURL;
+    return sigmlURL;
+  }
+  function startPlayer(sigmlURL) { CWASA.playSiGMLURL(0, setSiGMLURL(sigmlURL)); }
+
+  var playerAvailableToPlay = true, wordQueue = [], queueIndex = 0, playbackInterval = null;
+
+  function setStatus(msg) { document.getElementById('status-display').textContent = msg; }
+
+  function translateText() {
+    var text = document.getElementById('textInput').value.trim();
+    if (!text) return;
+    document.getElementById('speechDisplay').textContent = text;
+    setStatus('Processing...');
+    $.ajax({
+      url: "{% url 'process_text' %}",
+      type: 'POST',
+      data: { text: text },
+      success: function(data) {
+        if (data.tokens && data.tokens.length > 0) playTokens(data.tokens);
+        else setStatus('No tokens found');
+      },
+      error: function() { setStatus('Error'); }
+    });
+  }
+
+  function playTokens(tokens) {
+    if (playbackInterval) clearInterval(playbackInterval);
+    wordQueue = [];
+    tokens.forEach(t => {
+      const tl = t.toLowerCase();
+      if (sigmlList) {
+        for (var j = 0; j < sigmlList.length; j++) {
+          if (sigmlList[j].name === tl || sigmlList[j].name === tl.toUpperCase()) {
+            wordQueue.push({ word: tl, fileName: sigmlList[j].fileName }); break;
+          }
+        }
+      }
+    });
+
+    // Render token chips
+    const chipsEl = document.getElementById('token-chips');
+    chipsEl.innerHTML = wordQueue.map((item, i) => `<span class="px-3 py-1.5 rounded-full text-xs font-bold border border-outline-variant dark:border-slate-700 bg-surface-variant dark:bg-slate-800 text-on-surface-variant dark:text-slate-400 transition-all" id="chip-${i}">${item.word}</span>`).join('');
+
+    queueIndex = 0; playerAvailableToPlay = true;
+    setStatus('Signing ' + wordQueue.length + ' tokens...');
+    document.getElementById('queue-progress').textContent = '0 of ' + wordQueue.length;
+
+    playbackInterval = setInterval(function() {
+      if (queueIndex >= wordQueue.length) {
+        clearInterval(playbackInterval); playbackInterval = null;
+        document.getElementById('currentWord').textContent = '✅ Done';
+        document.getElementById('word-progress-bar').style.width = '100%';
+        document.getElementById('queue-progress').textContent = wordQueue.length + ' of ' + wordQueue.length;
+        setStatus('Complete!');
+        return;
+      }
+      if (playerAvailableToPlay) {
+        playerAvailableToPlay = false;
+        var item = wordQueue[queueIndex];
+        document.getElementById('currentWord').textContent = item.word.toUpperCase();
+        document.getElementById('queue-progress').textContent = (queueIndex + 1) + ' of ' + wordQueue.length;
+        document.getElementById('word-progress-bar').style.width = Math.round(((queueIndex + 1) / wordQueue.length) * 100) + '%';
+        // Update chips
+        wordQueue.forEach((_, i) => {
+          const chip = document.getElementById('chip-' + i);
+          if (chip) { chip.className = chip.className.replace(/token-signing|token-done/g, '').trim() + (i < queueIndex ? ' token-done' : i === queueIndex ? ' token-signing' : ''); }
+        });
+        startPlayer('SignFiles/' + item.fileName);
+        queueIndex++;
+        setTimeout(function() { playerAvailableToPlay = true; }, 3000);
+      }
+    }, 500);
+  }
+
+  function stopAvatar() {
+    if (playbackInterval) { clearInterval(playbackInterval); playbackInterval = null; }
+    wordQueue = []; queueIndex = 0; playerAvailableToPlay = true;
+    document.getElementById('currentWord').textContent = 'Stopped';
+    document.getElementById('queue-progress').textContent = '';
+    document.getElementById('word-progress-bar').style.width = '0%';
+    setStatus('Stopped');
+  }
+
+  // Speech recognition
+  var isListening = false;
+  document.getElementById('micBtn').addEventListener('click', function() {
+    if (isListening) stopListening(); else startListening();
+  });
+
+  function startListening() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) { alert('Use Chrome for speech recognition'); return; }
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    window.recognition = new SR();
+    window.recognition.continuous = false; window.recognition.interimResults = false; window.recognition.lang = 'en-US';
+    window.recognition.onstart = function() { isListening = true; document.getElementById('micBtn').classList.add('btn-listening'); setStatus('Listening...'); };
+    window.recognition.onresult = function(e) {
+      var t = e.results[0][0].transcript;
+      document.getElementById('textInput').value = t;
+      document.getElementById('speechDisplay').textContent = t;
+      stopListening(); translateText();
+    };
+    window.recognition.onerror = function(e) { setStatus('Mic error: ' + e.error); stopListening(); };
+    window.recognition.onend = function() { stopListening(); };
+    window.recognition.start();
+  }
+
+  function stopListening() {
+    isListening = false;
+    document.getElementById('micBtn').classList.remove('btn-listening');
+    if (window.recognition) { try { window.recognition.stop(); } catch(e){} }
+  }
+
+  // Buttons
+  document.getElementById('translateBtn').addEventListener('click', translateText);
+  document.getElementById('stopBtn').addEventListener('click', stopAvatar);
+  document.getElementById('clearInputBtn').addEventListener('click', function() {
+    document.getElementById('textInput').value = '';
+    document.getElementById('speechDisplay').textContent = '—';
+    stopAvatar();
+    document.getElementById('token-chips').innerHTML = '<span class="text-sm text-on-surface-variant dark:text-slate-500">Tokens appear here...</span>';
+  });
+
+  // Enter to translate
+  document.getElementById('textInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); translateText(); }
+  });
+</script>
+</body>
+</html>
