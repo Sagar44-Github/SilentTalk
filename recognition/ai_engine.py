@@ -11,7 +11,16 @@ This module handles two responsibilities:
 """
 
 import pickle
+
+"""
+AI engine for SilentTalk's gesture and emotion recognition pipeline.
+...
+"""
+import pickle
 import mediapipe as mp
+...
+
+
 import numpy as np
 import os
 
