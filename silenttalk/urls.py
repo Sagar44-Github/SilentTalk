@@ -1,4 +1,5 @@
 """
+# Main project URL routing
 URL configuration for silenttalk project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
