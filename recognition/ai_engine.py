@@ -1,3 +1,15 @@
+"""
+AI engine for SilentTalk's gesture and emotion recognition pipeline.
+
+This module handles two responsibilities:
+1. Facial emotion detection using MediaPipe FaceMesh landmark geometry
+   (detect_emotion) — classifies expressions as happy, sad, urgent,
+   surprised, or neutral based on mouth, eyebrow, and eye positioning.
+2. Hand sign recognition using a pre-trained RandomForest model
+   (predict_from_frame) — detects hand landmarks via MediaPipe Hands
+   and predicts the corresponding ISL letter, digit, space, or fullstop.
+"""
+
 import pickle
 import mediapipe as mp
 import numpy as np
