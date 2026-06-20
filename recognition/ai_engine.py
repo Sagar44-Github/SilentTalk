@@ -32,6 +32,13 @@ face_mesh = mp_face_mesh.FaceMesh(
     min_detection_confidence=0.5
 )
 
+# Emotion detection thresholds (tuned empirically)
+SMILE_THRESHOLD = 0.01
+SAD_THRESHOLD = -0.005
+BROW_RAISE_THRESHOLD = 0.08
+EYE_OPEN_THRESHOLD = 0.025
+MOUTH_OPEN_SURPRISE_THRESHOLD = 0.06
+MOUTH_OPEN_HAPPY_MAX = 0.04
 
 def detect_emotion(frame_array):
     """
@@ -86,9 +93,10 @@ def detect_emotion(frame_array):
 # ── Hand Sign Recognition ───────────────────────────────────────────────────
 # Load model using absolute path so it works regardless of working directory
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.p")
+if not os.path.exists(MODEL_PATH):
+    raise FileNotFoundError(f"Model file not found at {MODEL_PATH}. Please ensure model.p is present.")
 model_dict = pickle.load(open(MODEL_PATH, "rb"))
 model = model_dict["model"]
-
 # MediaPipe setup — match the original main.py settings exactly
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(
@@ -144,6 +152,17 @@ def predict_from_frame(frame_array):
 
         prediction = model.predict([np.asarray(data_aux)])
         return labels_dict.get(int(prediction[0]), "?")
+
+        if smile_score > SMILE_THRESHOLD and mouth_open < MOUTH_OPEN_HAPPY_MAX:
+        return "happy", True
+    elif brow_raise > BROW_RAISE_THRESHOLD and eye_open > EYE_OPEN_THRESHOLD:
+        return "urgent", True
+    elif smile_score < SAD_THRESHOLD:
+        return "sad", True
+    elif mouth_open > MOUTH_OPEN_SURPRISE_THRESHOLD:
+        return "surprised", True
+    else:
+        return "neutral", True
 
     return None
 
