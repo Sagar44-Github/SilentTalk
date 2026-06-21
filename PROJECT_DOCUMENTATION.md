@@ -497,7 +497,7 @@ python server.py
 
 ## Credits
 
-This project was developed as a comprehensive accessibility solution to bridge communication gaps for the deaf and hard-of-hearing community in India.
+This project was developed as solution to bridge communication gaps for the deaf and hard-of-hearing community in India.
 
 **Main Contributors**:
 - Sign Language Recognition: MediaPipe + TensorFlow
