@@ -1,0 +1,454 @@
+
+
+
+
+SILENT TALK
+
+Indian Sign Language AI Web Platform
+Complete Step-by-Step Build Guide  —  Updated 17 March 2026
+Sagar R  |  4th Sem CSE  |  DSATM  |  FSD PBL  23CSE46
+
+
+PROJECT PAPER TITLE
+Silent Talk: An Artificial Intelligence Based Indian Sign Language Recognition and Real-Time Bidirectional Speech Conversion Web Platform
+
+Django + PostgreSQL
+Tech Stack
+AWS ElasticBeanstalk
+Deployment
+MediaPipe + CNN/LSTM
+AI Core
+63M deaf Indians
+Target Users
+
+What You Have Right Now  ✓
+CURRENT STATUS — 17 MARCH 2026
+Letter-by-letter ASL working ✓   |   Word gesture model loaded ✓   |   Django project created ✓   |   3 apps created (recognition, users, learn) ✓
+
+Your Folder Structure Right Now
+SilentTalk - The Project/
+├── Sign-Language-to-Text-and-Speech/        ← REPO 1: Letter ASL (WORKING ✅)
+│   ├── main.py                              ← runs letter-by-letter ASL
+│   ├── model.p                              ← trained ML model
+│   └── requirements.txt
+├── ActionDetectionforSignLanguage/           ← REPO 2: Word gestures (loaded ✅)
+│   ├── action.h5                            ← LSTM pretrained model
+│   ├── run.py                               ← script YOU created
+│   └── venv/
+├── AudioToSignLanguageConverter/             ← REPO 3: Reverse channel (not yet integrated)
+├── sign-language-detector-flask-python/      ← REPO 4: Reference only
+├── silenttalk/                               ← YOUR DJANGO PROJECT ✅
+│   ├── recognition/                         ← app: webcam AI page
+│   ├── users/                               ← app: login/signup
+│   ├── learn/                               ← app: ISL learning module
+│   ├── silenttalk/                          ← Django settings
+│   └── manage.py
+└── silenttalk_env/                          ← Django virtual environment
+
+What Each Repo Does in Your Project
+REPO 1    AI BRAIN — MODE 1
+tanmayJivnani / Sign-Language-to-Text-and-Speech
+github.com/tanmayJivnani/Sign-Language-to-Text-and-Speech
+Letter-by-letter ASL recognition. MediaPipe + Random Forest model. Run main.py → webcam opens → sign A,B,C → letters appear on screen + spoken out loud. This is MODE 1 of Silent Talk.
+
+REPO 2    AI BRAIN — MODE 2
+nicknochnack / ActionDetectionforSignLanguage
+github.com/nicknochnack/ActionDetectionforSignLanguage
+Full word gesture recognition. LSTM model (action.h5) trained on hello, thanks, iloveyou. 30 frames per gesture, MediaPipe Holistic. This is MODE 2 of Silent Talk. Detection needs tuning later.
+
+REPO 3    REVERSE CHANNEL
+sahilkhoslaa / AudioToSignLanguageConverter
+github.com/sahilkhoslaa/AudioToSignLanguageConverter
+Reverse channel. Hearing person speaks/types → system displays ISL sign GIFs/images. Copy ISL GIF folder and speech-to-ISL mapping logic into your Django project. This is MODE 3.
+
+REPO 4    REFERENCE ONLY
+SohamPrajapati / sign-language-detector-flask-python
+github.com/SohamPrajapati/sign-language-detector-flask-python
+Flask web app reference only. Use this to understand how to serve webcam feed in a web interface. Don't run this — just read the code as reference.
+
+Phase 1 — Fix PostgreSQL and Launch Django
+BLOCKER
+Django is created but can't connect to database. Fix this first before adding any AI features.
+
+Step 1 — Create the database in pgAdmin
+Open pgAdmin 4 from Windows Start menu. Login with your PostgreSQL password.
+Left panel → Servers → PostgreSQL → right click Databases
+Click Create → Database
+In the Database field type exactly: silenttalkdb
+Click Save
+
+Step 2 — Run migrations
+In VS Code terminal, activate your Django environment and migrate:
+cd "D:\Semester - 4\Full Stack Development\SilentTalk - The Project"
+silenttalk_env\Scripts\activate
+cd silenttalk
+python manage.py migrate
+python manage.py createsuperuser
+
+EXPECTED OUTPUT
+You should see lines like:  Applying auth.0001_initial... OK  Applying admin.0001... OK  etc.
+
+Step 3 — Run Django server
+python manage.py runserver
+Open browser → go to http://127.0.0.1:8000
+SUCCESS
+You see the Django rocket page = Django is fully working. Go to http://127.0.0.1:8000/admin and login with your superuser credentials.
+
+Phase 2 — Connect Letter ASL (Mode 1) to Django
+This is the core feature. You take the working main.py from Repo 1 and serve it through a Django view with AJAX live output.
+
+Step 4 — Copy model.p into Django project
+# From Sign-Language-to-Text-and-Speech folder
+# Copy model.p file into your Django recognition app
+
+Source:      Sign-Language-to-Text-and-Speech\model.p
+Destination: silenttalk\recognition\model.p
+
+Step 5 — Create ai_engine.py in recognition app
+Inside silenttalk/recognition/ create a new file called ai_engine.py and paste:
+import pickle
+import mediapipe as mp
+import numpy as np
+
+model_dict = pickle.load(open("recognition/model.p", "rb"))
+model = model_dict["model"]
+
+mp_hands = mp.solutions.hands
+mp_drawing = mp.solutions.drawing_utils
+hands = mp_hands.Hands(static_image_mode=True, min_detection_confidence=0.3)
+
+labels_dict = {0:"A",1:"B",2:"C",3:"D",4:"E",5:"F",6:"G",7:"H",8:"I",
+               9:"J",10:"K",11:"L",12:"M",13:"N",14:"O",15:"P",16:"Q",
+               17:"R",18:"S",19:"T",20:"U",21:"V",22:"W",23:"X",24:"Y",25:"Z"}
+
+def predict_from_frame(frame_array):
+    data_aux = []
+    x_ = []
+    y_ = []
+    H, W, _ = frame_array.shape
+    results = hands.process(frame_array)
+    if results.multi_hand_landmarks:
+        for hand_landmarks in results.multi_hand_landmarks:
+            for lm in hand_landmarks.landmark:
+                x_.append(lm.x)
+                y_.append(lm.y)
+            for lm in hand_landmarks.landmark:
+                data_aux.append(lm.x - min(x_))
+                data_aux.append(lm.y - min(y_))
+        prediction = model.predict([np.asarray(data_aux)])
+        return labels_dict[int(prediction[0])]
+    return None
+
+Step 6 — Create the recognition view
+Open silenttalk/recognition/views.py and paste:
+import cv2
+import base64
+import numpy as np
+from django.shortcuts import render
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .ai_engine import predict_from_frame
+
+def recognition_page(request):
+    return render(request, "recognition/index.html")
+
+@csrf_exempt
+def predict(request):
+    if request.method == "POST":
+        data = request.POST.get("frame")
+        if data:
+            img_data = base64.b64decode(data.split(",")[1])
+            np_arr = np.frombuffer(img_data, np.uint8)
+            frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            letter = predict_from_frame(frame_rgb)
+            return JsonResponse({"letter": letter or ""})
+    return JsonResponse({"letter": ""})
+
+Step 7 — Add URLs
+Open silenttalk/silenttalk/urls.py and update:
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("", include("recognition.urls")),
+    path("users/", include("users.urls")),
+    path("learn/", include("learn.urls")),
+]
+Then create silenttalk/recognition/urls.py:
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path("", views.recognition_page, name="home"),
+    path("predict/", views.predict, name="predict"),
+]
+
+Step 8 — Create the HTML template with AJAX
+Create folder: silenttalk/recognition/templates/recognition/
+Inside it create index.html and paste:
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Silent Talk</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial; background: #1e1e1e; color: white; text-align: center; }
+        #detected-text { font-size: 48px; color: #4fc3f7; margin: 20px; min-height: 60px; }
+        #sentence { font-size: 28px; color: #81c784; margin: 10px; }
+        video { border: 2px solid #4fc3f7; border-radius: 8px; }
+        button { padding: 10px 24px; margin: 8px; border: none;
+                 border-radius: 6px; cursor: pointer; font-size: 16px; }
+        #clearBtn { background: #ef5350; color: white; }
+        #spaceBtn { background: #42a5f5; color: white; }
+    </style>
+</head>
+<body>
+    <h1>Silent Talk</h1>
+    <h3>Indian Sign Language Recognition</h3>
+    <video id="video" width="640" height="480" autoplay></video>
+    <canvas id="canvas" width="640" height="480" style="display:none"></canvas>
+    <div id="detected-text">-</div>
+    <div id="sentence"></div>
+    <button id="spaceBtn">Add Space</button>
+    <button id="clearBtn">Clear</button>
+
+    <script>
+    let sentence = "";
+    let lastLetter = "";
+    let sameCount = 0;
+
+    navigator.mediaDevices.getUserMedia({video: true}).then(stream => {
+        document.getElementById("video").srcObject = stream;
+    });
+
+    setInterval(function() {
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, 640, 480);
+        const frameData = canvas.toDataURL("image/jpeg", 0.6);
+
+        $.post("/predict/", { frame: frameData }, function(data) {
+            if (data.letter) {
+                $("#detected-text").text(data.letter);
+                if (data.letter === lastLetter) {
+                    sameCount++;
+                    if (sameCount === 15) {
+                        sentence += data.letter;
+                        $("#sentence").text(sentence);
+                    }
+                } else {
+                    lastLetter = data.letter;
+                    sameCount = 0;
+                }
+            }
+        });
+    }, 200);
+
+    $("#spaceBtn").click(function() { sentence += " "; $("#sentence").text(sentence); });
+    $("#clearBtn").click(function() { sentence = ""; $("#sentence").text(""); });
+    </script>
+</body>
+</html>
+
+Step 9 — Install AI libraries in Django env and run
+cd "D:\Semester - 4\Full Stack Development\SilentTalk - The Project"
+silenttalk_env\Scripts\activate
+pip install mediapipe opencv-python scikit-learn pillow
+cd silenttalk
+python manage.py runserver
+Open browser → http://127.0.0.1:8000 → allow camera → sign letters → they appear live on screen. This is your CORE FEATURE working inside Django with AJAX.
+THIS IS YOUR MODULE 5 (jQuery + AJAX) DONE
+setInterval + $.post() + JsonResponse = complete AJAX implementation. Covers your entire FSD syllabus Module 5 requirement.
+
+Phase 3 — Add Reverse Channel (Speech → ISL)
+This is YOUR original contribution. No cloned repo has both directions in Django. This is what makes Silent Talk bidirectional and novel.
+
+Step 10 — Copy ISL GIF assets from AudioToSignLanguageConverter
+# Inside AudioToSignLanguageConverter folder, find the signs/images folder
+# It will be named something like: /isl/ or /static/signs/ or /images/
+# Copy that entire folder to:
+
+silenttalk/recognition/static/recognition/isl_signs/
+
+# It should contain files like:
+# A.gif, B.gif, HELLO.gif, THANKS.gif, SORRY.gif, etc.
+
+Step 11 — Add speech-to-ISL view
+In silenttalk/recognition/views.py ADD this new view at the bottom:
+import nltk
+import os
+
+def speech_to_isl(request):
+    isl_data = []
+    if request.method == "POST":
+        text = request.POST.get("text", "").upper()
+        words = text.split()
+        static_dir = "recognition/static/recognition/isl_signs/"
+        for word in words:
+            gif_path = static_dir + word + ".gif"
+            if os.path.exists(gif_path):
+                isl_data.append({"type": "word", "value": word, "has_gif": True})
+            else:
+                # spell it out letter by letter
+                for letter in word:
+                    isl_data.append({"type": "letter", "value": letter, "has_gif": True})
+    return render(request, "recognition/speech_to_isl.html", {"isl_data": isl_data})
+Add to recognition/urls.py:
+    path("speech-to-isl/", views.speech_to_isl, name="speech_to_isl"),
+
+
+Phase 4 — Word Gesture Mode (Hello, Thanks, ILoveYou)
+NOTE
+Detection accuracy needs tuning. Come back to this in Week 5-6 after the core letter mode and reverse channel are working. Don't spend time here now.
+
+What you have already
+action.h5 — pretrained LSTM model (hello, thanks, iloveyou)
+run.py — script you created that loads the model and runs webcam
+Detection runs but accuracy is low
+
+Step 12 — Add word gesture view to Django (do this in Week 5)
+Copy run.py logic into a new Django view called gesture_page in recognition/views.py. Serve it at /gesture/ URL. This becomes MODE 2 of your platform.
+The three gestures hello, thanks, iloveyou will be demonstrated live during your 2nd Review in May. That's enough for 70% implementation.
+
+Phase 5 — User Authentication
+Django's built-in auth handles this. Minimal code needed.
+
+Step 13 — Create users/views.py
+from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.shortcuts import render, redirect
+
+def register(request):
+    if request.method == "POST":
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect("home")
+    else:
+        form = UserCreationForm()
+    return render(request, "users/register.html", {"form": form})
+
+def login_view(request):
+    if request.method == "POST":
+        form = AuthenticationForm(data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+            return redirect("home")
+    else:
+        form = AuthenticationForm()
+    return render(request, "users/login.html", {"form": form})
+
+def logout_view(request):
+    logout(request)
+    return redirect("login")
+Step 14 — Create users/urls.py
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path("register/", views.register, name="register"),
+    path("login/", views.login_view, name="login"),
+    path("logout/", views.logout_view, name="logout"),
+]
+
+Phase 6 — AWS ElasticBeanstalk Deployment
+DO THIS LAST
+Only deploy after everything works perfectly on local. AWS is the last 1 hour of the project, not a priority now. Target: Week 8-9.
+
+Step 15 — Prepare for deployment
+pip freeze > requirements.txt
+
+# Create a file called Procfile (no extension) in silenttalk folder:
+web: gunicorn silenttalk.wsgi --log-file -
+
+# In settings.py add your EB domain to ALLOWED_HOSTS:
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", ".elasticbeanstalk.com"]
+
+Step 16 — Deploy
+pip install awsebcli
+eb init -p python-3.10 silent-talk --region ap-south-1
+eb create silent-talk-env
+eb deploy
+eb open
+REGION NOTE
+Use ap-south-1 (Mumbai) — closest to Bangalore. Faster and cheaper than US regions.
+
+Review Checklist — What to Submit When
+Review
+Date
+Marks
+What you submit
+0th Review
+23–24 Mar 2026
+5 marks
+Project title: Silent Talk + Tech Stack list. Already done.
+1st Review
+21–22 Apr 2026
+10 marks
+Abstract + Introduction + Literature Survey (cite 4 IEEE papers) + Methodology diagram
+2nd Review
+19–21 May 2026
+10 marks
+70% implementation: Letter mode working + Reverse channel + Django deployed on AWS + Research paper draft
+3rd Review
+TBD
+75 marks
+Full platform + Word gesture mode + IEEE paper submitted to conference + External guide presentation
+
+
+Your IEEE Paper
+PAPER TITLE
+"Silent Talk: An Artificial Intelligence Based Indian Sign Language Recognition and Real-Time Bidirectional Speech Conversion Web Platform"
+
+4 IEEE Papers to Cite
+REPO P1    CITE IN LIT SURVEY
+An Efficient Real-Time Indian Sign Language (ISL) Detection using Deep Learning
+ieeexplore.ieee.org/document/10142596/
+IEEE 2023 — CNN + MediaPipe + OpenCV — directly mirrors your letter recognition stack
+
+REPO P2    CITE IN LIT SURVEY
+Real-Time Indian Sign Language Recognition & Multilingual Sign Generation
+ieeexplore.ieee.org/iel8/11040159/11041696/11041851.pdf
+IEEE 2023 — LSTM + bidirectional communication — your exact system architecture
+
+REPO P3    CITE IN LIT SURVEY
+Indian Sign Language Detection for Real-Time Translation using Machine Learning
+arxiv.org/html/2507.20414v2
+IEEE RAIT 2025 — CNN optimised for ISL — most recent paper, use for gap analysis
+
+REPO P4    CITE IN LIT SURVEY
+Real-Time Indian Sign Language (ISL) Recognition
+ieeexplore.ieee.org/document/8493808/
+IEEE — baseline ISL recognition architecture — your foundation reference
+
+Quick Reference — Commands You'll Use Every Day
+Every time you open VS Code and want to work on Django:
+# 1. Always activate env first
+cd "D:\Semester - 4\Full Stack Development\SilentTalk - The Project"
+silenttalk_env\Scripts\activate
+
+# 2. Go into Django project
+cd silenttalk
+
+# 3. Run server
+python manage.py runserver
+
+# 4. After adding new models
+python manage.py makemigrations
+python manage.py migrate
+To test letter ASL model (run separately):
+cd "D:\Semester - 4\Full Stack Development\SilentTalk - The Project\Sign-Language-to-Text-and-Speech"
+venv\Scripts\activate
+python main.py
+To test word gesture model (run separately):
+cd "D:\Semester - 4\Full Stack Development\SilentTalk - The Project\ActionDetectionforSignLanguage"
+venv\Scripts\activate
+python run.py
+
+Silent Talk  —  Sagar R  —  DSATM 4th Sem CSE  —  FSD PBL 23CSE46  —  2024-25
+Guide updated: 17 March 2026  |  Next milestone: 0th Review 23–24 March 2026
