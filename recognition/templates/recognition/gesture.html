@@ -1,0 +1,314 @@
+{% load static %}
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Word Gestures | Silent Talk</title>
+<meta name="description" content="Real-time word gesture recognition using MediaPipe AI — Silent Talk"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = { darkMode:"class", theme:{ extend:{ colors:{ "primary-fixed":"#e0e7ff","on-surface-variant":"#64748b","on-surface":"#0f172a","surface-variant":"#f1f5f9","outline-variant":"#e2e8f0","outline":"#94a3b8","primary":"#1e40af","background":"#f8fafc","on-primary":"#ffffff","surface":"#f8fafc","surface-container-high":"#f1f5f9" }, fontFamily:{"headline":["Manrope"],"body":["Inter"]}, borderRadius:{"DEFAULT":"0.5rem","lg":"0.5rem","xl":"0.75rem","2xl":"1.5rem","3xl":"2.5rem","full":"9999px"} } } }
+</script>
+<style>
+  body{font-family:'Inter',sans-serif;}h1,h2,h3{font-family:'Manrope',sans-serif;}
+  .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;}
+  .glass{background:rgba(255,255,255,0.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);}
+  .dark .glass{background:rgba(15,23,42,0.7);border:1px solid rgba(255,255,255,0.05);}
+  video#video{border-radius:1.5rem;object-fit:cover;width:100%;height:100%;}
+  canvas#canvas{display:none;}
+  .gesture-popup{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:linear-gradient(135deg,#1e40af,#3b82f6);color:white;padding:12px 28px;border-radius:1.5rem;font-family:'Manrope',sans-serif;font-weight:800;font-size:1.5rem;display:none;box-shadow:0 8px 32px rgba(30,64,175,0.4);animation:popIn 0.3s ease-out;}
+  @keyframes popIn{0%{transform:translate(-50%,-50%) scale(0.5);opacity:0;}100%{transform:translate(-50%,-50%) scale(1);opacity:1;}}
+  .gesture-chip{transition:all 0.3s ease;}
+  .gesture-chip:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(30,64,175,0.15);}
+  .confidence-bar-bg{height:8px;border-radius:9999px;overflow:hidden;}
+  .confidence-bar-fill{height:100%;border-radius:9999px;transition:width 0.3s ease;background:linear-gradient(90deg,#3b82f6,#6366f1);}
+</style>
+</head>
+
+<body class="bg-background text-on-surface dark:bg-slate-950 dark:text-slate-200 transition-colors duration-300">
+
+<!-- Navbar -->
+<nav class="fixed top-0 left-0 right-0 z-50 glass py-4 px-6 md:px-12">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <a href="{% url 'landing' %}" class="text-2xl font-extrabold tracking-tighter text-primary dark:text-blue-400 flex items-center gap-2">
+      <span class="material-symbols-outlined text-3xl" style="font-variation-settings:'FILL' 1">sign_language</span>
+      Silent Talk
+    </a>
+    <div class="hidden md:flex items-center gap-8 text-sm font-semibold">
+      <a class="text-on-surface-variant hover:text-primary dark:hover:text-blue-400 transition-colors" href="{% url 'landing' %}">Home</a>
+      <a class="text-on-surface-variant hover:text-primary dark:hover:text-blue-400 transition-colors" href="{% url 'recognize' %}">Sign→Text</a>
+      <a class="text-on-surface-variant hover:text-primary dark:hover:text-blue-400 transition-colors" href="{% url 'text_to_isl' %}">Text→ISL</a>
+      <a class="text-on-surface-variant hover:text-primary dark:hover:text-blue-400 transition-colors" href="{% url 'learn_isl' %}">Learn ISL</a>
+      <a class="text-primary dark:text-blue-400 relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-primary" href="{% url 'gesture' %}">Gestures</a>
+    </div>
+    <div class="flex items-center gap-4">
+      <button id="theme-toggle" class="p-2 rounded-full hover:bg-surface-variant dark:hover:bg-slate-800 transition-colors">
+        <span id="theme-toggle-light-icon" class="material-symbols-outlined text-on-surface-variant">light_mode</span>
+        <span id="theme-toggle-dark-icon" class="material-symbols-outlined text-slate-400 hidden">dark_mode</span>
+      </button>
+      {% if user.is_authenticated %}
+      <a href="{% url 'profile' %}" class="flex items-center gap-2 bg-primary-fixed dark:bg-blue-900/30 text-primary dark:text-blue-400 px-5 py-2.5 rounded-full font-bold text-sm hover:opacity-90 transition-all">
+        <div class="w-6 h-6 bg-primary rounded-lg flex items-center justify-center text-white text-[10px] font-black">{{ user.first_name.0 }}{{ user.last_name.0 }}</div>
+        {{ user.first_name }}
+      </a>
+      <a href="{% url 'logout' %}" class="text-on-surface-variant dark:text-slate-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20" title="Logout">
+        <span class="material-symbols-outlined text-xl">logout</span>
+      </a>
+      {% else %}
+      <a href="{% url 'login_page' %}" class="bg-primary text-on-primary px-8 py-2.5 rounded-full font-bold text-sm shadow-sm hover:opacity-90 transition-all">Login</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<main class="pt-32 pb-20 max-w-7xl mx-auto px-6 md:px-12">
+  <!-- Header -->
+  <div data-aos="fade-up" class="mb-10">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest">Mode 2 · MediaPipe</span>
+    </div>
+    <h1 class="text-4xl md:text-5xl font-black text-primary dark:text-blue-400 tracking-tight mb-3">Word Gestures</h1>
+    <p class="text-on-surface-variant dark:text-slate-400 font-medium text-lg max-w-2xl">Show hand gestures to the camera — AI recognizes gestures instantly using MediaPipe.</p>
+  </div>
+
+  <!-- Disclaimer -->
+  <div class="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-[2rem] p-6 mb-10 flex items-start gap-4" data-aos="fade-up" data-aos-delay="50">
+    <span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-2xl mt-0.5" style="font-variation-settings:'FILL' 1">info</span>
+    <div>
+      <h3 class="font-bold text-amber-800 dark:text-amber-300 text-sm mb-1">Limited Gesture Support — Beta</h3>
+      <p class="text-amber-700 dark:text-amber-400/80 text-sm leading-relaxed">Currently, only <strong>7 basic gestures</strong> are supported (Thumbs Up, Thumbs Down, Victory, I Love You, Closed Fist, Open Palm, Pointing Up). Word-level sign recognition requires significantly more training data and computation time. We are actively working on expanding the gesture vocabulary — more gestures will be added in future updates.</p>
+    </div>
+  </div>
+
+  <div class="flex flex-col lg:flex-row gap-10">
+    <!-- Left: Video -->
+    <div class="flex-1 space-y-6" data-aos="fade-right">
+      <section class="bg-white dark:bg-slate-900 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800 overflow-hidden relative">
+        <div class="relative" style="aspect-ratio:4/3;">
+          <video id="video" autoplay playsinline class="w-full h-full object-cover"></video>
+          <canvas id="canvas" width="640" height="480"></canvas>
+          <div class="gesture-popup" id="gesturePopup"></div>
+          <!-- Status badge -->
+          <div class="absolute top-4 left-4 z-10">
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-full glass text-xs font-bold" id="liveBadge">
+              <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+              <span class="text-on-surface dark:text-white uppercase tracking-wider">Camera Live</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Detected gesture display -->
+      <div class="bg-white dark:bg-slate-900 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800 p-6 text-center">
+        <div class="text-[10px] font-black uppercase tracking-widest text-on-surface-variant dark:text-slate-500 mb-2">Detected Gesture</div>
+        <div class="text-4xl font-black text-primary dark:text-blue-400 tracking-tight" id="gestureDisplay">—</div>
+      </div>
+
+      <!-- Status -->
+      <div class="text-center text-sm font-medium text-on-surface-variant dark:text-slate-500" id="statusMsg">Click Start to begin gesture detection</div>
+    </div>
+
+    <!-- Right: Controls & Info -->
+    <aside class="w-full lg:w-[400px] space-y-6" data-aos="fade-left">
+      <!-- Controls -->
+      <section class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800">
+        <h3 class="font-black text-[11px] uppercase tracking-[0.2em] text-on-surface-variant dark:text-slate-500 mb-6 flex items-center gap-2">
+          <span class="material-symbols-outlined text-base" style="font-variation-settings:'FILL' 1">tune</span> Controls
+        </h3>
+        <div class="space-y-3">
+          <button class="w-full px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-sm" id="startBtn" onclick="startDetection()">
+            <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1">play_arrow</span> Start Detection
+          </button>
+          <button class="w-full px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold text-sm items-center justify-center gap-2 transition-all shadow-sm hidden" id="stopBtn" onclick="stopDetection()">
+            <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1">stop</span> Stop
+          </button>
+          <button class="w-full px-6 py-3 bg-surface-variant/50 dark:bg-slate-800 text-on-surface-variant dark:text-slate-400 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-surface-variant dark:hover:bg-slate-700 transition-all border border-outline-variant/20 dark:border-slate-700" onclick="clearSentence()">
+            <span class="material-symbols-outlined text-lg">delete_sweep</span> Clear Sentence
+          </button>
+        </div>
+      </section>
+
+      <!-- Confidence -->
+      <section class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800">
+        <h3 class="font-black text-[11px] uppercase tracking-[0.2em] text-on-surface-variant dark:text-slate-500 mb-4 flex items-center gap-2">
+          <span class="material-symbols-outlined text-base" style="font-variation-settings:'FILL' 1">analytics</span> Confidence
+        </h3>
+        <div class="confidence-bar-bg bg-surface-variant/50 dark:bg-slate-800 mb-2">
+          <div class="confidence-bar-fill" id="confBar" style="width:0%"></div>
+        </div>
+        <div class="text-sm font-medium text-on-surface-variant dark:text-slate-400" id="confidenceText">Waiting...</div>
+      </section>
+
+      <!-- Sentence -->
+      <section class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800">
+        <h3 class="font-black text-[11px] uppercase tracking-[0.2em] text-on-surface-variant dark:text-slate-500 mb-4 flex items-center gap-2">
+          <span class="material-symbols-outlined text-base" style="font-variation-settings:'FILL' 1">chat</span> Sentence
+        </h3>
+        <div class="text-lg font-bold text-on-surface dark:text-white min-h-8 tracking-wide" id="sentenceDisplay">—</div>
+      </section>
+
+      <!-- Supported Gestures -->
+      <section class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800">
+        <h3 class="font-black text-[11px] uppercase tracking-[0.2em] text-on-surface-variant dark:text-slate-500 mb-6 flex items-center gap-2">
+          <span class="material-symbols-outlined text-base" style="font-variation-settings:'FILL' 1">gesture</span> 7 Supported Gestures
+        </h3>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="gesture-chip flex items-center gap-3 p-3 rounded-2xl bg-surface-variant/30 dark:bg-slate-800 border border-outline-variant/10 dark:border-slate-700">
+            <span class="text-2xl">👍</span><span class="text-sm font-semibold text-on-surface dark:text-white">Thumbs Up</span>
+          </div>
+          <div class="gesture-chip flex items-center gap-3 p-3 rounded-2xl bg-surface-variant/30 dark:bg-slate-800 border border-outline-variant/10 dark:border-slate-700">
+            <span class="text-2xl">👎</span><span class="text-sm font-semibold text-on-surface dark:text-white">Thumbs Down</span>
+          </div>
+          <div class="gesture-chip flex items-center gap-3 p-3 rounded-2xl bg-surface-variant/30 dark:bg-slate-800 border border-outline-variant/10 dark:border-slate-700">
+            <span class="text-2xl">✌️</span><span class="text-sm font-semibold text-on-surface dark:text-white">Victory</span>
+          </div>
+          <div class="gesture-chip flex items-center gap-3 p-3 rounded-2xl bg-surface-variant/30 dark:bg-slate-800 border border-outline-variant/10 dark:border-slate-700">
+            <span class="text-2xl">🤟</span><span class="text-sm font-semibold text-on-surface dark:text-white">I Love You</span>
+          </div>
+          <div class="gesture-chip flex items-center gap-3 p-3 rounded-2xl bg-surface-variant/30 dark:bg-slate-800 border border-outline-variant/10 dark:border-slate-700">
+            <span class="text-2xl">✊</span><span class="text-sm font-semibold text-on-surface dark:text-white">Closed Fist</span>
+          </div>
+          <div class="gesture-chip flex items-center gap-3 p-3 rounded-2xl bg-surface-variant/30 dark:bg-slate-800 border border-outline-variant/10 dark:border-slate-700">
+            <span class="text-2xl">🖐️</span><span class="text-sm font-semibold text-on-surface dark:text-white">Open Palm</span>
+          </div>
+          <div class="gesture-chip flex items-center gap-3 p-3 rounded-2xl bg-surface-variant/30 dark:bg-slate-800 border border-outline-variant/10 dark:border-slate-700 col-span-2">
+            <span class="text-2xl">☝️</span><span class="text-sm font-semibold text-on-surface dark:text-white">Pointing Up</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Links -->
+      <section class="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-outline-variant/10 dark:border-slate-800">
+        <h3 class="font-black text-[11px] uppercase tracking-[0.2em] text-on-surface-variant dark:text-slate-500 mb-4">Also Try</h3>
+        <div class="space-y-2">
+          <a href="{% url 'recognize' %}" class="flex items-center justify-between p-3 rounded-2xl hover:bg-surface-variant dark:hover:bg-slate-800 transition-all group">
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-primary dark:text-blue-400" style="font-variation-settings:'FILL' 1">text_fields</span>
+              <span class="text-sm font-semibold text-on-surface dark:text-white">Letter Recognition</span>
+            </div>
+            <span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary dark:group-hover:text-blue-400 transition-colors">arrow_forward</span>
+          </a>
+          <a href="{% url 'text_to_isl' %}" class="flex items-center justify-between p-3 rounded-2xl hover:bg-surface-variant dark:hover:bg-slate-800 transition-all group">
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-primary dark:text-blue-400" style="font-variation-settings:'FILL' 1">sign_language</span>
+              <span class="text-sm font-semibold text-on-surface dark:text-white">Text → ISL Avatar</span>
+            </div>
+            <span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary dark:group-hover:text-blue-400 transition-colors">arrow_forward</span>
+          </a>
+          <a href="{% url 'learn_isl' %}" class="flex items-center justify-between p-3 rounded-2xl hover:bg-surface-variant dark:hover:bg-slate-800 transition-all group">
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-primary dark:text-blue-400" style="font-variation-settings:'FILL' 1">school</span>
+              <span class="text-sm font-semibold text-on-surface dark:text-white">Learn ISL</span>
+            </div>
+            <span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary dark:group-hover:text-blue-400 transition-colors">arrow_forward</span>
+          </a>
+        </div>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<script>
+  // Theme
+  const html = document.documentElement;
+  function applyTheme(t) {
+    if (t === 'dark') { html.classList.add('dark'); document.getElementById('theme-toggle-light-icon').classList.add('hidden'); document.getElementById('theme-toggle-dark-icon').classList.remove('hidden'); }
+    else { html.classList.remove('dark'); document.getElementById('theme-toggle-dark-icon').classList.add('hidden'); document.getElementById('theme-toggle-light-icon').classList.remove('hidden'); }
+  }
+  applyTheme(localStorage.getItem('theme') || 'light');
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const n = html.classList.contains('dark') ? 'light' : 'dark'; localStorage.setItem('theme', n); applyTheme(n);
+  });
+
+  // AOS
+  AOS.init({ once: true, duration: 800, easing: 'ease-out-quad' });
+
+  // Gesture detection logic
+  var detecting = false, sentence = [], lastGesture = "", stableCount = 0, captureInterval = null;
+  var video = document.getElementById("video");
+  var canvas = document.getElementById("canvas");
+  var ctx = canvas.getContext("2d");
+
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(function(s) { video.srcObject = s; })
+    .catch(function(e) {
+      document.getElementById("statusMsg").textContent = "Camera error: " + e.message;
+    });
+
+  function startDetection() {
+    detecting = true; stableCount = 0; lastGesture = "";
+    document.getElementById("startBtn").classList.add("hidden");
+    document.getElementById("stopBtn").classList.remove("hidden");
+    document.getElementById("stopBtn").style.display = "flex";
+    document.getElementById("statusMsg").textContent = "Detecting gestures...";
+    captureInterval = setInterval(captureAndPredict, 200);
+  }
+
+  function stopDetection() {
+    detecting = false;
+    if (captureInterval) clearInterval(captureInterval);
+    document.getElementById("startBtn").classList.remove("hidden");
+    document.getElementById("stopBtn").classList.add("hidden");
+    document.getElementById("gestureDisplay").textContent = "—";
+    document.getElementById("statusMsg").textContent = "Detection stopped";
+  }
+
+  function clearSentence() {
+    sentence = [];
+    document.getElementById("sentenceDisplay").textContent = "—";
+  }
+
+  var inFlight = false;
+  function captureAndPredict() {
+    if (!detecting || inFlight) return;
+    ctx.drawImage(video, 0, 0, 640, 480);
+    var frameData = canvas.toDataURL("image/jpeg", 0.6);
+    inFlight = true;
+
+    $.ajax({
+      url: "{% url 'predict_gesture' %}",
+      type: "POST",
+      data: { frame: frameData },
+      success: function(data) {
+        inFlight = false;
+        if (data.gesture && data.gesture !== "None" && data.confidence > 0.5) {
+          var pct = Math.round(data.confidence * 100);
+          document.getElementById("gestureDisplay").textContent = data.display;
+          document.getElementById("confBar").style.width = pct + "%";
+          document.getElementById("confidenceText").textContent = data.display + " — " + pct + "%";
+
+          var popup = document.getElementById("gesturePopup");
+          popup.textContent = data.display;
+          popup.style.display = "block";
+
+          if (data.gesture === lastGesture) { stableCount++; }
+          else { stableCount = 1; lastGesture = data.gesture; }
+
+          if (stableCount === 3) {
+            if (sentence.length === 0 || sentence[sentence.length-1] !== data.display) {
+              sentence.push(data.display);
+              if (sentence.length > 15) sentence = sentence.slice(-15);
+              document.getElementById("sentenceDisplay").textContent = sentence.join("  ");
+            }
+            stableCount = 0;
+          }
+        } else {
+          document.getElementById("gestureDisplay").textContent = "—";
+          document.getElementById("gesturePopup").style.display = "none";
+          document.getElementById("confBar").style.width = "0%";
+          document.getElementById("confidenceText").textContent = "Waiting...";
+          lastGesture = ""; stableCount = 0;
+        }
+      },
+      error: function() { inFlight = false; }
+    });
+  }
+</script>
+</body>
+</html>

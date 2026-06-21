@@ -1,5 +1,31 @@
+master
+"""
+AI engine for SilentTalk's gesture and emotion recognition pipeline.
+
+This module handles two responsibilities:
+1. Facial emotion detection using MediaPipe FaceMesh landmark geometry
+   (detect_emotion) — classifies expressions as happy, sad, urgent,
+   surprised, or neutral based on mouth, eyebrow, and eye positioning.
+2. Hand sign recognition using a pre-trained RandomForest model
+   (predict_from_frame) — detects hand landmarks via MediaPipe Hands
+   and predicts the corresponding ISL letter, digit, space, or fullstop.
+"""
+
+import pickle
+
+"""
+AI engine for SilentTalk's gesture and emotion recognition pipeline.
+...
+"""
 import pickle
 import mediapipe as mp
+...
+
+
+
+import pickle
+import mediapipe as mp
+ dev/member4-database
 import numpy as np
 import os
 
@@ -11,6 +37,16 @@ face_mesh = mp_face_mesh.FaceMesh(
     min_detection_confidence=0.5
 )
 
+master
+# Emotion detection thresholds (tuned empirically)
+SMILE_THRESHOLD = 0.01
+SAD_THRESHOLD = -0.005
+BROW_RAISE_THRESHOLD = 0.08
+EYE_OPEN_THRESHOLD = 0.025
+MOUTH_OPEN_SURPRISE_THRESHOLD = 0.06
+MOUTH_OPEN_HAPPY_MAX = 0.04
+
+ dev/member4-database
 
 def detect_emotion(frame_array):
     """
@@ -65,9 +101,16 @@ def detect_emotion(frame_array):
 # ── Hand Sign Recognition ───────────────────────────────────────────────────
 # Load model using absolute path so it works regardless of working directory
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.p")
+ master
+if not os.path.exists(MODEL_PATH):
+    raise FileNotFoundError(f"Model file not found at {MODEL_PATH}. Please ensure model.p is present.")
 model_dict = pickle.load(open(MODEL_PATH, "rb"))
 model = model_dict["model"]
 
+model_dict = pickle.load(open(MODEL_PATH, "rb"))
+model = model_dict["model"]
+
+ dev/member4-database
 # MediaPipe setup — match the original main.py settings exactly
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(
@@ -124,6 +167,21 @@ def predict_from_frame(frame_array):
         prediction = model.predict([np.asarray(data_aux)])
         return labels_dict.get(int(prediction[0]), "?")
 
+       master
+        if smile_score > SMILE_THRESHOLD and mouth_open < MOUTH_OPEN_HAPPY_MAX:
+        return "happy", True
+    elif brow_raise > BROW_RAISE_THRESHOLD and eye_open > EYE_OPEN_THRESHOLD:
+        return "urgent", True
+    elif smile_score < SAD_THRESHOLD:
+        return "sad", True
+    elif mouth_open > MOUTH_OPEN_SURPRISE_THRESHOLD:
+        return "surprised", True
+    else:
+        return "neutral", True
+
     return None
 
     # Tested the AI engine one time more before committing second time😁😁
+
+    return None
+dev/member4-database
