@@ -153,4 +153,10 @@ def predict(request):
             print(f"[SilentTalk] ERROR in predict: {e}")
             traceback.print_exc()
             return JsonResponse({"letter": "", "error": str(e)})
+ master
     return JsonResponse({"letter": ""})
+
+ # Tested this code one time more before committing second time😁😁 -- Found out that nothing was wrong just loading CORS error
+
+    return JsonResponse({"letter": ""})
+ dev/member4-database
